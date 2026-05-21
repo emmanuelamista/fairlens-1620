@@ -1,734 +1,1640 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="FairLens – A Counterfactual Fairness Pipeline for Algorithmic Bias Mitigation. CS 323 Case Study by Emmanuel Amista, NEMSU.">
-  <title>FairLens – Algorithmic Bias Mitigation | CS 323</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    html{scroll-behavior:smooth}*,*::before,*::after{box-sizing:border-box}
-    body{background:#080e1a;background-image:radial-gradient(ellipse 80% 50% at 20% 0%,rgba(0,180,120,0.07) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(100,70,255,0.06) 0%,transparent 60%);min-height:100vh;transition:background .35s,color .35s}
-    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
-    #chat-messages::-webkit-scrollbar{width:3px}
-    section[id]{scroll-margin-top:64px}
-    .card-lift{transition:transform .18s ease,box-shadow .18s ease}.card-lift:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.3)}
-    .di-track{height:6px;border-radius:99px;position:relative;background:linear-gradient(to right,#ef4444 0%,#f59e0b 42%,#10b981 72%,#00e5a0 100%)}
-    .di-pin{position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;border:2.5px solid #080e1a;transition:left .7s cubic-bezier(0.34,1.4,0.64,1),box-shadow:0 0 8px currentColor,border-color .35s}
-    .g-svg{transform:rotate(-90deg);display:block}.g-bg{fill:none;stroke:rgba(255,255,255,0.06);stroke-width:7}.g-arc{fill:none;stroke-width:7;stroke-linecap:round;transition:stroke-dasharray .8s cubic-bezier(0.34,1.2,0.64,1),stroke .4s}
-    .tbl-row{border-bottom:1px solid rgba(255,255,255,0.04);transition:background .1s}.tbl-row:hover{background:rgba(255,255,255,0.025)}.tbl-row:nth-child(even){background:rgba(255,255,255,0.01)}
-    .policy-item{border-left:3px solid #00c47a;background:rgba(255,255,255,0.03);transition:background .15s,border-color .35s}.policy-item:hover{background:rgba(0,196,122,0.05)}
-    @keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(0,196,122,0.65)}70%{box-shadow:0 0 0 12px rgba(0,196,122,0)}100%{box-shadow:0 0 0 0 rgba(0,196,122,0)}}.chat-pulse{animation:pulse-ring 2.4s infinite}
-    @keyframes dot-bounce{0%,80%,100%{transform:scale(0.55);opacity:0.4}40%{transform:scale(1);opacity:1}}.tdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#6b7280;margin:0 1.5px;animation:dot-bounce 1.3s infinite ease-in-out}.tdot:nth-child(1){animation-delay:-.28s}.tdot:nth-child(2){animation-delay:-.14s}
-    .chip{cursor:pointer;font-size:11px;padding:4px 11px;border-radius:99px;border:1px solid rgba(120,90,255,0.3);background:rgba(120,90,255,0.12);color:#c4b5fd;transition:all .12s;white-space:nowrap}.chip:hover{background:rgba(120,90,255,0.28);border-color:rgba(120,90,255,0.6);color:#ede9fe}
-    @keyframes spin{to{transform:rotate(360deg)}}.spin{animation:spin 1s linear infinite;display:inline-block}
-    .ref-link{color:#34d399;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(52,211,153,0.4);transition:color .15s,text-decoration-color .15s}.ref-link:hover{color:#6ee7b7;text-decoration-color:#6ee7b7}
-    .chat-ref-link{color:#34d399;text-decoration:underline;text-underline-offset:2px}.chat-ref-link:hover{color:#6ee7b7}
-    .theme-toggle{position:relative;width:44px;height:24px;border-radius:99px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);cursor:pointer;transition:background .25s,border-color .25s;flex-shrink:0}
-    .theme-toggle .toggle-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fbbf24;transition:transform .25s cubic-bezier(0.34,1.4,0.64,1),background .25s;display:flex;align-items:center;justify-content:center;font-size:10px}
-    .theme-toggle.light-active .toggle-knob{transform:translateX(20px);background:#6366f1}
-    .theme-toggle.light-active{background:rgba(99,102,241,0.2);border-color:rgba(99,102,241,0.4)}
-    .upload-zone{border:2px dashed rgba(0,196,122,0.3);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:all .2s}.upload-zone:hover,.upload-zone.drag-over{border-color:rgba(0,196,122,0.7);background:rgba(0,196,122,0.05)}
-    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center}
-    .modal-box{background:#0d1826;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto}
-    .sel{background:#1a2332;border:1px solid rgba(255,255,255,0.15);color:white;padding:8px 12px;border-radius:8px;font-size:13px;width:100%;cursor:pointer}.sel:focus{outline:none;border-color:rgba(0,196,122,0.5)}
-    .src-tab{cursor:pointer;padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;transition:all .15s;border:1px solid transparent}
-    .src-tab-active{background:rgba(0,196,122,0.15);border-color:rgba(0,196,122,0.4);color:#00e5a0}
-    .src-tab-inactive{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:#6b7280}
-    .src-tab-inactive:hover{background:rgba(255,255,255,0.06);color:#9ca3af}
-    [data-theme="light"] body{background:#f0f4f8!important;background-image:radial-gradient(ellipse 80% 50% at 20% 0%,rgba(0,180,120,0.04) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(100,70,255,0.03) 0%,transparent 60%)!important}
-    [data-theme="light"] .t-white{color:#0f172a!important}[data-theme="light"] .t-gray-200{color:#1e293b!important}[data-theme="light"] .t-gray-300{color:#334155!important}[data-theme="light"] .t-gray-400{color:#475569!important}[data-theme="light"] .t-gray-500{color:#64748b!important}[data-theme="light"] .t-gray-600{color:#94a3b8!important}
-    [data-theme="light"] .t-emerald-400{color:#059669!important}[data-theme="light"] .t-emerald-300{color:#10b981!important}[data-theme="light"] .t-emerald-500{color:#047857!important}
-    [data-theme="light"] .t-purple-400{color:#7c3aed!important}[data-theme="light"] .t-red-400{color:#dc2626!important}[data-theme="light"] .t-yellow-400{color:#d97706!important}[data-theme="light"] .t-blue-300{color:#2563eb!important}[data-theme="light"] .t-pink-300{color:#db2777!important}
-    [data-theme="light"] .nav-bar{background:rgba(255,255,255,0.92)!important;border-color:rgba(0,0,0,0.06)!important;box-shadow:0 1px 4px rgba(0,0,0,0.05)!important}
-    [data-theme="light"] .card-section{background:white!important;border-color:rgba(0,0,0,0.08)!important;box-shadow:0 1px 4px rgba(0,0,0,0.04)!important}
-    [data-theme="light"] .card-inset{background:#f8fafc!important;border-color:rgba(0,0,0,0.06)!important}
-    [data-theme="light"] .card-prototype{background:white!important;border-color:rgba(5,150,105,0.18)!important;box-shadow:0 2px 10px rgba(0,0,0,0.05)!important}
-    [data-theme="light"] .card-case{background:white!important;border-color:rgba(0,0,0,0.08)!important;box-shadow:0 1px 4px rgba(0,0,0,0.04)!important}
-    [data-theme="light"] .card-lift:hover{box-shadow:0 8px 24px rgba(0,0,0,0.08)!important}
-    [data-theme="light"] .tbl-row{border-color:rgba(0,0,0,0.06)!important}[data-theme="light"] .tbl-row:hover{background:rgba(0,0,0,0.02)!important}[data-theme="light"] .tbl-row:nth-child(even){background:rgba(0,0,0,0.015)!important}
-    [data-theme="light"] .table-header{background:rgba(241,245,249,0.9)!important;color:#475569!important}
-    [data-theme="light"] .policy-item{background:rgba(0,0,0,0.015)!important;border-color:#059669!important}
-    [data-theme="light"] .b-emerald{background:rgba(5,150,105,0.1)!important;color:#059669!important}[data-theme="light"] .b-red{background:rgba(220,38,38,0.08)!important;color:#dc2626!important}[data-theme="light"] .b-yellow{background:rgba(217,119,6,0.1)!important;color:#d97706!important}[data-theme="light"] .b-blue{background:rgba(37,99,235,0.08)!important;color:#2563eb!important}[data-theme="light"] .b-pink{background:rgba(219,39,119,0.08)!important;color:#db2777!important}[data-theme="light"] .b-gray{background:#e2e8f0!important;color:#475569!important}
-    [data-theme="light"] .tag-pill{background:rgba(0,0,0,0.03)!important;border-color:rgba(0,0,0,0.08)!important}
-    [data-theme="light"] .di-pin{border-color:#f0f4f8!important}
-    [data-theme="light"] .g-bg{stroke:rgba(0,0,0,0.07)!important}
-    [data-theme="light"] .border-d{border-color:rgba(0,0,0,0.06)!important}[data-theme="light"] .border-ds{border-color:rgba(0,0,0,0.04)!important}
-    [data-theme="light"] .btn-sec{background:rgba(0,0,0,0.04)!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}[data-theme="light"] .btn-sec:hover{background:rgba(0,0,0,0.07)!important}
-    [data-theme="light"] .ieee-badge{background:rgba(5,150,105,0.1)!important;border-color:rgba(5,150,105,0.3)!important;color:#059669!important}
-    [data-theme="light"] .ref-link{color:#059669;text-decoration-color:rgba(5,150,105,0.4)}.ref-link:hover{color:#047857;text-decoration-color:#047857}
-    [data-theme="light"] .chat-ref-link{color:#059669}
-    [data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.12)}
-    [data-theme="light"] .chat-window{background:#fff!important;box-shadow:0 20px 60px rgba(0,0,0,0.12),0 0 0 1px rgba(0,0,0,0.06)!important}
-    [data-theme="light"] .chat-header{background:#f8fafc!important;border-color:rgba(0,0,0,0.06)!important}
-    [data-theme="light"] .chat-msgs{background:#f8fafc!important}
-    [data-theme="light"] .chat-bot{background:rgba(0,0,0,0.04)!important;border-color:rgba(0,0,0,0.06)!important;color:#1e293b!important}
-    [data-theme="light"] .chat-user{background:rgba(5,150,105,0.1)!important;border-color:rgba(5,150,105,0.2)!important;color:#0f172a!important}
-    [data-theme="light"] .chat-input-area{background:#fff!important}
-    [data-theme="light"] .chat-input{background:#f1f5f9!important;border-color:#cbd5e1!important;color:#0f172a!important}[data-theme="light"] .chat-input::placeholder{color:#94a3b8!important}
-    [data-theme="light"] .chat-chips{background:#fff!important;border-color:rgba(0,0,0,0.04)!important}
-    [data-theme="light"] .chip{background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.2);color:#6366f1}.chip:hover{background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#4f46e5}
-    [data-theme="light"] .s-idle{background:rgba(0,0,0,0.02)!important;border-color:rgba(0,0,0,0.06)!important}
-    [data-theme="light"] .s-biased{background:rgba(220,38,38,0.05)!important;border-color:rgba(220,38,38,0.15)!important}
-    [data-theme="light"] .s-marginal{background:rgba(217,119,6,0.05)!important;border-color:rgba(217,119,6,0.15)!important}
-    [data-theme="light"] .s-fair{background:rgba(5,150,105,0.05)!important;border-color:rgba(5,150,105,0.15)!important}
-    [data-theme="light"] .sc-ok{background:rgba(5,150,105,0.06)!important;border-color:rgba(5,150,105,0.15)!important}
-    [data-theme="light"] .sc-bad{background:rgba(220,38,38,0.06)!important;border-color:rgba(220,38,38,0.15)!important}
-    [data-theme="light"] .modal-box{background:#fff!important;border-color:rgba(0,0,0,0.1)!important}
-    [data-theme="light"] .sel{background:#f1f5f9!important;border-color:#cbd5e1!important;color:#0f172a!important}
-    [data-theme="light"] .upload-zone{border-color:rgba(5,150,105,0.3)!important;background:rgba(5,150,105,0.02)!important}
-    [data-theme="light"] .upload-zone:hover{border-color:rgba(5,150,105,0.6)!important;background:rgba(5,150,105,0.05)!important}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FairLens — AI Bias Detection System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        surface: { 950:'#0b1120', 900:'#111827', 800:'#1a2332', 700:'#243044', 600:'#2e3d55' },
+                        accent: { DEFAULT:'#10b981', light:'#34d399', dark:'#059669' },
+                        warn: '#f59e0b',
+                        danger: '#ef4444',
+                    },
+                    fontFamily: {
+                        display: ['Space Grotesk','sans-serif'],
+                        body: ['DM Sans','sans-serif'],
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        :root {
+            --bg: #0b1120; --bg2: #111827; --card: #1a2332; --border: #2a3a4e;
+            --text: #e2e8f0; --muted: #8899aa; --accent: #10b981; --accent-light: #34d399;
+            --warn: #f59e0b; --danger: #ef4444;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); margin:0; overflow-x:hidden; }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Space Grotesk', sans-serif; }
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-track { background: var(--bg2); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        .page { display:none; opacity:0; transition: opacity 0.3s ease; }
+        .page.active { display:block; opacity:1; }
+
+        .sidebar-link { display:flex; align-items:center; gap:12px; padding:10px 16px; border-radius:8px;
+            color: var(--muted); transition: all 0.2s; cursor:pointer; font-size:14px; }
+        .sidebar-link:hover { background: rgba(16,185,129,0.08); color: var(--accent-light); }
+        .sidebar-link.active { background: rgba(16,185,129,0.12); color: var(--accent); font-weight:600; }
+        .sidebar-link i { width:20px; text-align:center; font-size:16px; }
+
+        .card { background: var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; }
+        .card-hover:hover { border-color: var(--accent); transform: translateY(-2px); transition: all 0.25s; }
+
+        .btn-primary { background: var(--accent); color:#fff; padding:10px 24px; border-radius:8px; border:none;
+            font-weight:600; cursor:pointer; transition: all 0.2s; font-family:'DM Sans',sans-serif; font-size:14px; }
+        .btn-primary:hover { background: var(--accent-light); transform: translateY(-1px); }
+        .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+        .btn-secondary { background: transparent; color: var(--accent); padding:10px 24px; border-radius:8px;
+            border:1px solid var(--accent); font-weight:600; cursor:pointer; transition: all 0.2s;
+            font-family:'DM Sans',sans-serif; font-size:14px; }
+        .btn-secondary:hover { background: rgba(16,185,129,0.1); }
+
+        .btn-ghost { background:transparent; color:var(--muted); padding:8px 16px; border-radius:6px; border:none;
+            cursor:pointer; transition: all 0.2s; font-family:'DM Sans',sans-serif; font-size:13px; }
+        .btn-ghost:hover { color:var(--text); background:rgba(255,255,255,0.05); }
+
+        .input-field { background: var(--bg2); border:1px solid var(--border); border-radius:8px; padding:10px 14px;
+            color: var(--text); font-family:'DM Sans',sans-serif; font-size:14px; width:100%; outline:none; transition: border-color 0.2s; }
+        .input-field:focus { border-color: var(--accent); }
+        .input-field::placeholder { color: var(--muted); }
+
+        select.input-field { appearance:none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238899aa' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat:no-repeat; background-position: right 12px center; padding-right:36px; }
+
+        .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+        .badge-green { background:rgba(16,185,129,0.15); color:#34d399; }
+        .badge-yellow { background:rgba(245,158,11,0.15); color:#fbbf24; }
+        .badge-red { background:rgba(239,68,68,0.15); color:#f87171; }
+        .badge-blue { background:rgba(6,182,212,0.15); color:#22d3ee; }
+
+        .drop-zone { border:2px dashed var(--border); border-radius:12px; padding:48px 24px; text-align:center;
+            transition: all 0.3s; cursor:pointer; }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(16,185,129,0.05); }
+
+        .step-indicator { display:flex; align-items:center; gap:0; }
+        .step-dot { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+            font-size:13px; font-weight:700; border:2px solid var(--border); color:var(--muted); transition: all 0.3s; flex-shrink:0; }
+        .step-dot.active { border-color:var(--accent); background:var(--accent); color:#fff; }
+        .step-dot.done { border-color:var(--accent); background:rgba(16,185,129,0.2); color:var(--accent); }
+        .step-line { flex:1; height:2px; background:var(--border); transition: background 0.3s; min-width:20px; }
+        .step-line.done { background:var(--accent); }
+
+        .chat-msg { animation: msgIn 0.3s ease; }
+        @keyframes msgIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+        .typing-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); animation: typingBounce 1.4s infinite; }
+        .typing-dot:nth-child(2) { animation-delay:0.2s; }
+        .typing-dot:nth-child(3) { animation-delay:0.4s; }
+        @keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+        .toast { position:fixed; top:20px; right:20px; padding:14px 20px; border-radius:10px; color:#fff;
+            font-size:14px; font-weight:500; z-index:9999; animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3); display:flex; align-items:center; gap:10px; max-width:380px; }
+        .toast-success { background: #059669; }
+        .toast-error { background: #dc2626; }
+        .toast-info { background: #0891b2; }
+        @keyframes toastIn { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes toastOut { from{opacity:1} to{opacity:0} }
+
+        .pulse-ring { animation: pulseRing 2s ease infinite; }
+        @keyframes pulseRing { 0%{box-shadow:0 0 0 0 rgba(16,185,129,0.4)} 70%{box-shadow:0 0 0 10px rgba(16,185,129,0)} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0)} }
+
+        .glow-line { position:absolute; bottom:0; left:0; right:0; height:1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity:0.3; }
+
+        .metric-bar { height:8px; border-radius:4px; background:var(--bg); overflow:hidden; }
+        .metric-fill { height:100%; border-radius:4px; transition: width 0.8s ease; }
+
+        .data-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .data-table th { text-align:left; padding:10px 12px; color:var(--muted); font-weight:600;
+            border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+        .data-table td { padding:8px 12px; border-bottom:1px solid rgba(42,58,78,0.5); }
+        .data-table tr:hover td { background:rgba(16,185,129,0.03); }
+
+        @media(max-width:768px) {
+            #sidebar { position:fixed; left:-260px; z-index:100; transition:left 0.3s; height:100vh; }
+            #sidebar.open { left:0; }
+            #mobile-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99; }
+            #sidebar.open ~ #mobile-overlay { display:block; }
+        }
+
+        .bg-grid { background-image:
+            linear-gradient(rgba(16,185,129,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(16,185,129,0.03) 1px, transparent 1px);
+            background-size: 40px 40px; }
+    </style>
 </head>
-<body class="text-gray-200 font-sans antialiased">
-<div id="root"></div>
-<script type="text/babel">
-const {useState,useEffect,useRef,useCallback} = React;
+<body class="flex min-h-screen bg-grid">
 
-const DEFAULT_GROQ_KEY = "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";
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const CIRC = 2 * Math.PI * 28;
-
-/* ── CSV PARSER ── */
-function parseCSVLine(line){
-  const r=[];let c='',q=false;
-  for(let i=0;i<line.length;i++){
-    const ch=line[i];
-    if(q){if(ch==='"'&&line[i+1]==='"'){c+='"';i++}else if(ch==='"'){q=false}else c+=ch}
-    else{if(ch==='"')q=true;else if(ch===','){r.push(c);c=''}else c+=ch}
-  }
-  r.push(c);return r;
-}
-function parseCSV(text){
-  const lines=text.split(/\r?\n/).filter(l=>l.trim());
-  if(lines.length<2)return null;
-  const headers=parseCSVLine(lines[0]).map(h=>h.trim());
-  const rows=[];
-  for(let i=1;i<lines.length;i++){
-    const vals=parseCSVLine(lines[i]);
-    if(vals.length>=headers.length){
-      const row={};headers.forEach((h,j)=>row[h]=vals[j]?.trim()??"");
-      rows.push(row);
-    }
-  }
-  return{headers,rows};
-}
-
-/* ── BUILT-IN DATASET ENGINE ── */
-function generateDataset(){
-  const seed=[42,17,83,56,91,28,64,35,77,11];
-  const inc=[25,30,35,40,45,50,55,60,65,70,75,80];
-  const trm=[12,24,36,48,60];
-  return seed.map((s,i)=>({
-    Income:inc[s%inc.length],Term:trm[s%trm.length],
-    Gender:i%2===0?"M":"F",
-    true_label:inc[s%inc.length]>=45?1:(s%3===0?1:0)
-  }));
-}
-
-function detectBiasBuiltIn(dataset){
-  const TH=40;
-  const ds=dataset.map(r=>{let sc=r.Income*0.8+r.Term*0.05;if(r.Gender==="F")sc-=12;return{...r,biased_pred:sc>=TH?1:0}});
-  const m=ds.filter(r=>r.Gender==="M"),f=ds.filter(r=>r.Gender==="F");
-  const mR=m.reduce((s,r)=>s+r.biased_pred,0)/m.length;
-  const fR=f.reduce((s,r)=>s+r.biased_pred,0)/f.length;
-  const di=mR>0?fR/mR:0;
-  return{di_score:Math.round(di*10000)/10000,verdict:di<0.8?"biased":(di<0.9?"marginal":"fair"),approval_rate_male:Math.round(mR*10000)/10000,approval_rate_female:Math.round(fR*10000)/10000,dataset:ds,groupRates:{M:mR,F:fR},protectedCol:"Gender",positiveValue:1};
-}
-
-function mitigateBiasBuiltIn(dataset,biasResult){
-  const TH=40;
-  const ds=biasResult.dataset.map(r=>{let fs=r.Income*0.8+r.Term*0.05;return{...r,fair_pred:fs>=TH?1:0}});
-  const m=ds.filter(r=>r.Gender==="M"),f=ds.filter(r=>r.Gender==="F");
-  const mR=m.reduce((s,r)=>s+r.fair_pred,0)/m.length;
-  const fR=f.reduce((s,r)=>s+r.fair_pred,0)/f.length;
-  const di=mR>0?fR/mR:1;
-  return{fair_di_score:Math.round(di*10000)/10000,approval_rate_male:Math.round(mR*10000)/10000,approval_rate_female:Math.round(fR*10000)/10000,dataset:ds};
-}
-
-/* ── CUSTOM DATASET ENGINE ── */
-function detectBiasCustom(rows,protectedCol,outcomeCol,positiveVal){
-  const groups={};
-  rows.forEach(r=>{
-    const g=String(r[protectedCol]);
-    if(!groups[g])groups[g]=[];
-    groups[g].push(r);
-  });
-  const rates={};
-  Object.entries(groups).forEach(([g,rs])=>{
-    const pos=rs.filter(r=>String(r[outcomeCol])===String(positiveVal)).length;
-    rates[g]=rs.length>0?pos/rs.length:0;
-  });
-  const rv=Object.values(rates);
-  const minR=Math.min(...rv),maxR=Math.max(...rv);
-  const di=maxR>0?minR/maxR:0;
-  const verdict=di<0.8?"biased":(di<0.9?"marginal":"fair");
-  const ds=rows.map(r=>({...r,biased_pred:String(r[outcomeCol])===String(positiveVal)?1:0}));
-  const sortedGroups=Object.entries(rates).sort((a,b)=>b[1]-a[1]);
-  return{
-    di_score:Math.round(di*10000)/10000,verdict,
-    approval_rate_male:Math.round(sortedGroups[0][1]*10000)/10000,
-    approval_rate_female:Math.round(sortedGroups[sortedGroups.length-1][1]*10000)/10000,
-    dataset:ds,groupRates:rates,protectedCol,outcomeCol,positiveValue:positiveVal,
-    groupNames:sortedGroups.map(([g])=>g)
-  };
-}
-
-function mitigateBiasCustom(rows,biasResult){
-  const{protectedCol,outcomeCol,positiveValue,groupRates}=biasResult;
-  const totalPos=rows.filter(r=>String(r[outcomeCol])===String(positiveValue)).length;
-  const overallRate=totalPos/rows.length;
-  const groups={};
-  rows.forEach(r=>{const g=String(r[protectedCol]);if(!groups[g])groups[g]=[];groups[g].push(r)});
-  const ds=[];
-  Object.entries(groups).forEach(([g,rs])=>{
-    const targetCount=Math.round(overallRate*rs.length);
-    const sorted=[...rs].sort((a,b)=>{
-      const aS=String(a[outcomeCol])===String(positiveValue)?1:0;
-      const bS=String(b[outcomeCol])===String(positiveValue)?1:0;
-      return bS-aS;
-    });
-    sorted.forEach((r,i)=>{
-      ds.push({...r,fair_pred:i<targetCount?1:0});
-    });
-  });
-  const newRates={};
-  Object.entries(groups).forEach(([g])=>{
-    const gRows=ds.filter(r=>String(r[protectedCol])===g);
-    newRates[g]=gRows.reduce((s,r)=>s+r.fair_pred,0)/gRows.length;
-  });
-  const rv=Object.values(newRates);
-  const minR=Math.min(...rv),maxR=Math.max(...rv);
-  const fairDI=maxR>0?minR/maxR:1;
-  const sortedGroups=Object.entries(newRates).sort((a,b)=>b[1]-a[1]);
-  return{
-    fair_di_score:Math.round(fairDI*10000)/10000,
-    approval_rate_male:Math.round(sortedGroups[0][1]*10000)/10000,
-    approval_rate_female:Math.round(sortedGroups[sortedGroups.length-1][1]*10000)/10000,
-    dataset:ds
-  };
-}
-
-/* ── REFS ── */
-const REF_URLS={mehrabi:"https://arxiv.org/abs/1908.09635",barocas:"https://fairmlbook.org/",ferrara:"https://doi.org/10.3390/sci6010023",buolamwini:"https://proceedings.mlr.press/v81/buolamwini18a.html",pessach:"https://arxiv.org/abs/2201.04364",propublica:"https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing",reuters:"https://www.reuters.com/article/us-amazon-com-jobs-automation-insight/amazon-scraps-secret-ai-recruiting-tool-that-showed-bias-against-women-idUSKCN1MK08G"};
-function R({href,children}){return<a href={href} target="_blank" rel="noopener noreferrer" className="ref-link">{children}</a>}
-
-const CHAT_REF_PATTERNS=[
-  {re:/Mehrabi\s+et\s+al\.?\s*\(?\s*2021\s*\)?/gi,url:REF_URLS.mehrabi},
-  {re:/Barocas[\s,]*(?:Hardt[\s&]*Narayanan)?\s*(?:et\s+al\.?)?\s*\(?\s*2023\s*\)?/gi,url:REF_URLS.barocas},
-  {re:/Ferrara\s*\(?\s*2024\s*\)?/gi,url:REF_URLS.ferrara},
-  {re:/Buolamwini\s*[&and]+\s*Gebru\s*\(?\s*2018\s*\)?/gi,url:REF_URLS.buolamwini},
-  {re:/Pessach\s*[&and]+\s*Shmueli\s*\(?\s*2022\s*\)?/gi,url:REF_URLS.pessach},
-  {re:/ProPublica\s*\(?\s*2016\s*\)?/gi,url:REF_URLS.propublica},
-  {re:/Reuters\s*\(?\s*2018\s*\)?/gi,url:REF_URLS.reuters},
-  {re:/Angwin\s+et\s+al\.?\s*\(?\s*2016\s*\)?/gi,url:REF_URLS.propublica},
-  {re:/Dastin\s*\(?\s*2018\s*\)?/gi,url:REF_URLS.reuters}
-];
-function linkifyChatRefs(html){let r=html;for(const{re,url}of CHAT_REF_PATTERNS)r=r.replace(re,m=>`<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-ref-link">${m}</a>`);return r}
-
-function diColor(di){if(di===null)return"#374151";if(di>=0.9)return"#10b981";if(di>=0.8)return"#f59e0b";return"#ef4444"}
-function PredBadge({pred,trueLabel}){
-  if(pred===null||pred===undefined)return<span className="t-gray-600 text-gray-600">—</span>;
-  const a=pred===1,c=pred===trueLabel;
-  let cls=a?(c?"b-emerald":"b-yellow"):(c?"b-gray":"b-red");
-  return<span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${cls}`}>{a?"✓ Approve":"✗ Deny"}</span>;
-}
-function GaugeSVG({value,color}){
-  const arc=Math.min(Math.max(value||0,0),1)*CIRC;
-  return(<svg className="g-svg mx-auto" width="72" height="72" viewBox="0 0 72 72"><circle className="g-bg" cx="36" cy="36" r="28"/><circle className="g-arc" cx="36" cy="36" r="28" stroke={color} strokeDasharray={`${arc} ${CIRC}`}/></svg>);
-}
-
-/* ── COLUMN MAPPING MODAL ── */
-function ColumnMapper({headers,rows,onConfirm,onCancel}){
-  const[protCol,setProtCol]=useState("");
-  const[outCol,setOutCol]=useState("");
-  const[posVal,setPosVal]=useState("");
-
-  useEffect(()=>{
-    const autoProt=headers.find(h=>/gender|sex|race|ethnicity|group/i.test(h))||"";
-    const autoOut=headers.find(h=>/label|approved|outcome|decision|target|class|y$/i.test(h))||"";
-    setProtCol(autoProt);setOutCol(autoOut);
-    if(autoOut){
-      const uniq=[...new Set(rows.map(r=>r[autoOut]))];
-      if(uniq.length<=2)setPosVal(uniq.includes("1")?"1":uniq.includes("Yes")?"Yes":uniq.includes("Approved")?"Approved":uniq[0]||"");
-    }
-  },[headers,rows]);
-
-  const canConfirm=protCol&&outCol&&posVal!=="";
-  const uniqVals=outCol?[...new Set(rows.map(r=>r[outCol]))]:[];
-
-  return(
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-box" onClick={e=>e.stopPropagation()}>
-        <h3 className="t-white text-white font-bold text-lg mb-1"><i className="fas fa-columns t-emerald-400 text-emerald-400 mr-2"></i>Map Your Dataset Columns</h3>
-        <p className="t-gray-400 text-gray-400 text-xs mb-5">Select which columns represent the protected attribute and the decision outcome.</p>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold t-gray-300 text-gray-300 mb-1.5"><i className="fas fa-shield-alt t-emerald-400 text-emerald-400 mr-1"></i>Protected Attribute (e.g., Gender, Race)</label>
-            <select className="sel" value={protCol} onChange={e=>setProtCol(e.target.value)}>
-              <option value="">— Select column —</option>
-              {headers.map(h=><option key={h} value={h}>{h}</option>)}
-            </select>
-            {protCol&&<p className="text-[10px] t-gray-500 text-gray-500 mt-1">Values: {[...new Set(rows.map(r=>r[protCol]))].slice(0,6).join(", ")}{[...new Set(rows.map(r=>r[protCol]))].length>6?"…":""}</p>}
-          </div>
-          <div>
-            <label className="block text-xs font-semibold t-gray-300 text-gray-300 mb-1.5"><i className="fas fa-check-circle t-purple-400 text-purple-400 mr-1"></i>Outcome / Decision Column</label>
-            <select className="sel" value={outCol} onChange={e=>{setOutCol(e.target.value);setPosVal("")}}>
-              <option value="">— Select column —</option>
-              {headers.map(h=><option key={h} value={h}>{h}</option>)}
-            </select>
-          </div>
-          {outCol&&uniqVals.length<=10&&(
-            <div>
-              <label className="block text-xs font-semibold t-gray-300 text-gray-300 mb-1.5"><i className="fas fa-thumbs-up t-yellow-400 text-yellow-400 mr-1"></i>Positive Outcome Value (approval / success)</label>
-              <select className="sel" value={posVal} onChange={e=>setPosVal(e.target.value)}>
-                <option value="">— Select value —</option>
-                {uniqVals.map(v=><option key={v} value={v}>{v}</option>)}
-              </select>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-60 bg-surface-900 border-r border-surface-700/50 flex flex-col flex-shrink-0 h-screen sticky top-0">
+        <div class="p-5 border-b border-surface-700/50">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-accent/20 flex items-center justify-center">
+                    <i class="fas fa-eye text-accent text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold font-display text-white tracking-tight">FairLens</h1>
+                    <p class="text-[10px] text-accent font-medium tracking-widest uppercase">Bias Detection</p>
+                </div>
             </div>
-          )}
         </div>
-        <div className="flex gap-3 mt-6 pt-4 border-t border-d border-white/[0.06]">
-          <button onClick={onCancel} className="flex-1 bg-gray-800 hover:bg-gray-700 t-gray-300 text-gray-300 text-sm font-medium py-2.5 rounded-lg transition">Cancel</button>
-          <button onClick={()=>canConfirm&&onConfirm({protectedCol:protCol,outcomeCol:outCol,positiveValue:posVal})} disabled={!canConfirm} className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-lg transition">
-            <i className="fas fa-check mr-1"></i>Confirm Mapping
-          </button>
+        <nav class="flex-1 p-3 space-y-1">
+            <div class="sidebar-link active" data-page="dashboard" onclick="navigateTo('dashboard')">
+                <i class="fas fa-th-large"></i><span>Dashboard</span>
+            </div>
+            <div class="sidebar-link" data-page="pipeline" onclick="navigateTo('pipeline')">
+                <i class="fas fa-microscope"></i><span>Detection Pipeline</span>
+            </div>
+            <div class="sidebar-link" data-page="chatbot" onclick="navigateTo('chatbot')">
+                <i class="fas fa-robot"></i><span>Chatbot</span>
+            </div>
+            <div class="sidebar-link" data-page="reports" onclick="navigateTo('reports')">
+                <i class="fas fa-chart-bar"></i><span>Reports</span>
+            </div>
+        </nav>
+        <div class="p-4 border-t border-surface-700/50">
+            <div class="card p-3 !bg-surface-800">
+                <p class="text-xs text-muted mb-2">System Status</p>
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-accent pulse-ring"></div>
+                    <span class="text-xs text-accent font-medium">All Systems Online</span>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
-}
+    </aside>
+    <div id="mobile-overlay" onclick="document.getElementById('sidebar').classList.remove('open')"></div>
 
-/* ── PROTOTYPE ── */
-function PrototypeSection(){
-  const[source,setSource]=useState("builtin");
-  const[builtInDS]=useState(generateDataset);
-  const[customRows,setCustomRows]=useState([]);
-  const[customHeaders,setCustomHeaders]=useState([]);
-  const[customConfig,setCustomConfig]=useState(null);
-  const[showMapper,setShowMapper]=useState(false);
-  const[loading,setLoading]=useState(false);
-  const[biasResult,setBiasResult]=useState(null);
-  const[mitigResult,setMitigResult]=useState(null);
-  const[step,setStep]=useState("idle");
-  const[fileError,setFileError]=useState(null);
-  const fileRef=useRef(null);
+    <!-- Main Content -->
+    <main id="main-content" class="flex-1 min-h-screen">
+        <!-- Top Bar -->
+        <header class="sticky top-0 z-50 bg-surface-950/80 backdrop-blur-xl border-b border-surface-700/30 px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button id="mobile-menu-btn" class="md:hidden text-muted hover:text-white" onclick="document.getElementById('sidebar').classList.toggle('open')">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <h2 id="page-title" class="font-display font-semibold text-lg text-white">Dashboard</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="dataset-indicator" class="badge badge-green text-xs"><i class="fas fa-database mr-1"></i>Built-in Dataset</span>
+            </div>
+        </header>
 
-  const dataset=source==="builtin"?builtInDS:customRows;
-  const canDetect=source==="builtin"?dataset.length>0:(dataset.length>0&&customConfig!==null);
+        <!-- ==================== DASHBOARD PAGE ==================== -->
+        <div id="page-dashboard" class="page active p-6">
+            <div class="mb-8">
+                <h2 class="font-display text-3xl font-bold text-white mb-2">Welcome to FairLens</h2>
+                <p class="text-muted max-w-2xl">Detect, measure, and mitigate bias in your datasets and AI models. Upload your own data or use our built-in dataset to get started.</p>
+            </div>
 
-  const handleFile=e=>{
-    const file=e.target.files?.[0];if(!file)return;
-    setFileError(null);setBiasResult(null);setMitigResult(null);setStep("idle");setCustomConfig(null);
-    if(!file.name.endsWith(".csv")&&!file.name.endsWith(".txt")){setFileError("⚠ Please upload a .csv file.");return}
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      const result=parseCSV(ev.target.result);
-      if(!result||result.rows.length===0){setFileError("⚠ Could not parse CSV. Make sure it has headers and at least 1 data row.");return}
-      setCustomHeaders(result.headers);setCustomRows(result.rows);
-      setShowMapper(true);
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="card card-hover">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center"><i class="fas fa-database text-accent"></i></div>
+                        <span class="badge badge-green">Active</span>
+                    </div>
+                    <p class="text-2xl font-bold font-display text-white" id="stat-records">100</p>
+                    <p class="text-xs text-muted mt-1">Records Loaded</p>
+                </div>
+                <div class="card card-hover">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center"><i class="fas fa-columns text-cyan-400"></i></div>
+                    </div>
+                    <p class="text-2xl font-bold font-display text-white" id="stat-columns">10</p>
+                    <p class="text-xs text-muted mt-1">Data Columns</p>
+                </div>
+                <div class="card card-hover">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center"><i class="fas fa-exclamation-triangle text-amber-400"></i></div>
+                    </div>
+                    <p class="text-2xl font-bold font-display text-white" id="stat-bias">--</p>
+                    <p class="text-xs text-muted mt-1">Bias Issues Found</p>
+                </div>
+                <div class="card card-hover">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center"><i class="fas fa-chart-pie text-violet-400"></i></div>
+                    </div>
+                    <p class="text-2xl font-bold font-display text-white" id="stat-analyses">0</p>
+                    <p class="text-xs text-muted mt-1">Analyses Completed</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="lg:col-span-2 card">
+                    <h3 class="font-display font-semibold text-white mb-4">Quick Actions</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button onclick="navigateTo('pipeline')" class="flex items-center gap-3 p-4 rounded-lg bg-surface-800 hover:bg-surface-700 transition text-left group">
+                            <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition">
+                                <i class="fas fa-play text-accent"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-white">Run Detection Pipeline</p>
+                                <p class="text-xs text-muted">Analyze dataset for bias</p>
+                            </div>
+                        </button>
+                        <button onclick="navigateTo('pipeline');setTimeout(()=>document.getElementById('upload-tab-btn').click(),100)" class="flex items-center gap-3 p-4 rounded-lg bg-surface-800 hover:bg-surface-700 transition text-left group">
+                            <div class="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition">
+                                <i class="fas fa-upload text-cyan-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-white">Upload Dataset</p>
+                                <p class="text-xs text-muted">CSV or JSON file</p>
+                            </div>
+                        </button>
+                        <button onclick="navigateTo('chatbot')" class="flex items-center gap-3 p-4 rounded-lg bg-surface-800 hover:bg-surface-700 transition text-left group">
+                            <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition">
+                                <i class="fas fa-robot text-amber-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-white">Ask FairLens AI</p>
+                                <p class="text-xs text-muted">Chat about bias & fairness</p>
+                            </div>
+                        </button>
+                        <button onclick="navigateTo('reports')" class="flex items-center gap-3 p-4 rounded-lg bg-surface-800 hover:bg-surface-700 transition text-left group">
+                            <div class="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center group-hover:bg-violet-500/20 transition">
+                                <i class="fas fa-file-alt text-violet-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-white">View Reports</p>
+                                <p class="text-xs text-muted">Past analysis results</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 class="font-display font-semibold text-white mb-4">Detection Overview</h3>
+                    <canvas id="dashboard-chart" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="font-display font-semibold text-white mb-4">Built-in Dataset Preview</h3>
+                <div class="overflow-x-auto">
+                    <table class="data-table" id="dashboard-table">
+                        <thead><tr></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-muted mt-3">Showing first 10 records of the built-in Employee Hiring Dataset</p>
+            </div>
+        </div>
+
+        <!-- ==================== PIPELINE PAGE ==================== -->
+        <div id="page-pipeline" class="page p-6">
+            <div class="mb-6">
+                <h2 class="font-display text-3xl font-bold text-white mb-2">Detection Pipeline</h2>
+                <p class="text-muted">Configure and run bias detection on built-in or custom datasets</p>
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="flex items-center mb-8 px-4 max-w-2xl">
+                <div class="step-dot active" data-step="1">1</div>
+                <div class="step-line" data-line="1"></div>
+                <div class="step-dot" data-step="2">2</div>
+                <div class="step-line" data-line="2"></div>
+                <div class="step-dot" data-step="3">3</div>
+                <div class="step-line" data-line="3"></div>
+                <div class="step-dot" data-step="4">4</div>
+            </div>
+
+            <!-- Step 1: Data Source -->
+            <div id="pipeline-step-1" class="pipeline-step">
+                <div class="card max-w-3xl">
+                    <h3 class="font-display font-semibold text-white text-xl mb-1">Step 1: Select Data Source</h3>
+                    <p class="text-sm text-muted mb-6">Choose between the built-in dataset or upload your own CSV/JSON file</p>
+
+                    <!-- Tab Buttons -->
+                    <div class="flex gap-2 mb-6">
+                        <button id="builtin-tab-btn" class="btn-primary text-sm" onclick="switchSourceTab('builtin')">
+                            <i class="fas fa-database mr-2"></i>Built-in Dataset
+                        </button>
+                        <button id="upload-tab-btn" class="btn-secondary text-sm" onclick="switchSourceTab('upload')">
+                            <i class="fas fa-upload mr-2"></i>Upload Your Data
+                        </button>
+                    </div>
+
+                    <!-- Built-in Dataset Info -->
+                    <div id="builtin-tab" class="space-y-4">
+                        <div class="p-4 rounded-lg bg-surface-800 border border-surface-700">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-8 h-8 rounded bg-accent/10 flex items-center justify-center">
+                                    <i class="fas fa-users text-accent text-sm"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-white">Employee Hiring Dataset</p>
+                                    <p class="text-xs text-muted">100 records &middot; 10 columns &middot; Simulated hiring data with demographic info</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-muted leading-relaxed">This dataset contains applicant information including age, gender, race, education, experience, interview scores, and hiring outcomes. It includes intentionally embedded bias patterns for detection purposes.</p>
+                        </div>
+                    </div>
+
+                    <!-- Upload Dataset -->
+                    <div id="upload-tab" class="space-y-4" style="display:none;">
+                        <div id="drop-zone" class="drop-zone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('file-input').click()">
+                            <input type="file" id="file-input" accept=".csv,.json,.tsv" style="display:none" onchange="handleFileSelect(event)">
+                            <div class="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-cloud-upload-alt text-accent text-2xl"></i>
+                            </div>
+                            <p class="text-white font-semibold mb-1">Drop your file here or click to browse</p>
+                            <p class="text-sm text-muted">Supports CSV, TSV, and JSON files (max 10MB)</p>
+                        </div>
+                        <div id="upload-preview" style="display:none;">
+                            <div class="p-4 rounded-lg bg-surface-800 border border-accent/30">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded bg-accent/10 flex items-center justify-center">
+                                            <i class="fas fa-file-csv text-accent text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-semibold text-white" id="upload-filename">file.csv</p>
+                                            <p class="text-xs text-muted" id="upload-fileinfo">0 records &middot; 0 columns</p>
+                                        </div>
+                                    </div>
+                                    <button class="btn-ghost text-danger" onclick="clearUploadedFile()"><i class="fas fa-trash mr-1"></i>Remove</button>
+                                </div>
+                                <div class="overflow-x-auto max-h-48 overflow-y-auto">
+                                    <table class="data-table" id="upload-table">
+                                        <thead><tr></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end mt-6">
+                        <button class="btn-primary" onclick="goToStep(2)">Continue <i class="fas fa-arrow-right ml-2"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Column Configuration -->
+            <div id="pipeline-step-2" class="pipeline-step" style="display:none;">
+                <div class="card max-w-3xl">
+                    <h3 class="font-display font-semibold text-white text-xl mb-1">Step 2: Configure Analysis</h3>
+                    <p class="text-sm text-muted mb-6">Select which columns to analyze as protected attributes and outcome variables</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-white mb-2">Protected Attribute</label>
+                            <select id="select-protected" class="input-field" onchange="updateReferenceGroups()">
+                                <option value="">-- Select column --</option>
+                            </select>
+                            <p class="text-xs text-muted mt-1">The demographic attribute to check for bias (e.g., gender, race)</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-white mb-2">Outcome Variable</label>
+                            <select id="select-outcome" class="input-field" onchange="updateOutcomeValues()">
+                                <option value="">-- Select column --</option>
+                            </select>
+                            <p class="text-xs text-muted mt-1">The decision outcome to analyze (e.g., hired, approved)</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-white mb-2">Reference Group (Privileged)</label>
+                            <select id="select-reference" class="input-field">
+                                <option value="">-- Select group --</option>
+                            </select>
+                            <p class="text-xs text-muted mt-1">The group expected to be favored</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-white mb-2">Favorable Outcome</label>
+                            <select id="select-favorable" class="input-field">
+                                <option value="">-- Select value --</option>
+                            </select>
+                            <p class="text-xs text-muted mt-1">The positive outcome (e.g., "Yes", "1", "Hired")</p>
+                        </div>
+                    </div>
+
+                    <div id="column-preview" class="mb-4 p-4 rounded-lg bg-surface-800 border border-surface-700" style="display:none;">
+                        <p class="text-xs text-muted mb-2">Column Distribution Preview</p>
+                        <canvas id="column-preview-chart" height="120"></canvas>
+                    </div>
+
+                    <div class="flex justify-between mt-6">
+                        <button class="btn-secondary" onclick="goToStep(1)"><i class="fas fa-arrow-left mr-2"></i>Back</button>
+                        <button class="btn-primary" onclick="goToStep(3)">Continue <i class="fas fa-arrow-right ml-2"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Review & Run -->
+            <div id="pipeline-step-3" class="pipeline-step" style="display:none;">
+                <div class="card max-w-3xl">
+                    <h3 class="font-display font-semibold text-white text-xl mb-1">Step 3: Review & Run Analysis</h3>
+                    <p class="text-sm text-muted mb-6">Confirm your configuration and start the bias detection</p>
+
+                    <div class="space-y-3 mb-6" id="review-config">
+                        <!-- Filled dynamically -->
+                    </div>
+
+                    <div class="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20 mb-6">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-info-circle text-amber-400 mt-0.5"></i>
+                            <div>
+                                <p class="text-sm font-medium text-amber-300">Analysis Metrics</p>
+                                <p class="text-xs text-muted mt-1">The pipeline will compute: Statistical Parity Difference, Disparate Impact Ratio, Group Representation, and Outcome Distribution across groups.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between">
+                        <button class="btn-secondary" onclick="goToStep(2)"><i class="fas fa-arrow-left mr-2"></i>Back</button>
+                        <button class="btn-primary" id="run-analysis-btn" onclick="runAnalysis()">
+                            <i class="fas fa-play mr-2"></i>Run Bias Detection
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Results -->
+            <div id="pipeline-step-4" class="pipeline-step" style="display:none;">
+                <div id="analysis-loading" class="text-center py-16" style="display:none;">
+                    <div class="w-16 h-16 rounded-full border-4 border-accent/20 border-t-accent animate-spin mx-auto mb-4"></div>
+                    <p class="text-white font-semibold font-display">Analyzing for Bias Patterns...</p>
+                    <p class="text-sm text-muted mt-1">Computing fairness metrics across groups</p>
+                </div>
+                <div id="analysis-results" style="display:none;">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="font-display font-semibold text-white text-xl">Analysis Results</h3>
+                            <p class="text-sm text-muted" id="results-summary-text">Bias detection complete</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn-ghost" onclick="exportResults()"><i class="fas fa-download mr-1"></i>Export</button>
+                            <button class="btn-secondary text-sm" onclick="goToStep(1)"><i class="fas fa-redo mr-1"></i>New Analysis</button>
+                        </div>
+                    </div>
+
+                    <!-- Bias Score -->
+                    <div class="card mb-6 flex items-center gap-6 flex-wrap">
+                        <div class="text-center">
+                            <p class="text-xs text-muted mb-1">Overall Bias Score</p>
+                            <p class="text-5xl font-bold font-display" id="bias-score">--</p>
+                        </div>
+                        <div class="flex-1 min-w-[200px]">
+                            <div class="metric-bar h-4 rounded-lg">
+                                <div class="metric-fill" id="bias-score-bar" style="width:0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-muted mt-1">
+                                <span>Fair</span><span>Moderate</span><span>Severe</span>
+                            </div>
+                        </div>
+                        <div id="bias-severity-badge"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="card">
+                            <h4 class="font-display font-semibold text-white mb-4">Outcome Rate by Group</h4>
+                            <canvas id="results-chart-outcome" height="220"></canvas>
+                        </div>
+                        <div class="card">
+                            <h4 class="font-display font-semibold text-white mb-4">Group Representation</h4>
+                            <canvas id="results-chart-representation" height="220"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card mb-6">
+                        <h4 class="font-display font-semibold text-white mb-4">Fairness Metrics</h4>
+                        <div class="overflow-x-auto">
+                            <table class="data-table" id="metrics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Group</th>
+                                        <th>Count</th>
+                                        <th>Favorable Rate</th>
+                                        <th>Stat. Parity Diff</th>
+                                        <th>Disparate Impact</th>
+                                        <th>Assessment</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h4 class="font-display font-semibold text-white mb-4">Recommendations</h4>
+                        <div id="recommendations-list" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== CHATBOT PAGE ==================== -->
+        <div id="page-chatbot" class="page p-6">
+            <div class="max-w-3xl mx-auto flex flex-col" style="height: calc(100vh - 100px);">
+                <div class="mb-4">
+                    <h2 class="font-display text-2xl font-bold text-white mb-1">FairLens AI Assistant</h2>
+                    <p class="text-sm text-muted">Ask about bias detection, fairness metrics, or get help with your dataset</p>
+                </div>
+
+                <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-2" style="min-height:0;">
+                    <!-- Welcome message -->
+                    <div class="chat-msg flex gap-3">
+                        <div class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-1">
+                            <i class="fas fa-robot text-accent text-xs"></i>
+                        </div>
+                        <div class="flex-1 max-w-[85%]">
+                            <div class="bg-surface-800 rounded-xl rounded-tl-sm p-4 text-sm leading-relaxed">
+                                <p class="text-white font-semibold mb-2">Welcome to FairLens AI</p>
+                                <p class="text-muted">I can help you understand bias detection concepts, interpret your analysis results, and guide you through the fairness metrics. What would you like to know?</p>
+                            </div>
+                            <p class="text-xs text-muted mt-1">Just now</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggested Questions -->
+                <div id="chat-suggestions" class="flex flex-wrap gap-2 mb-3">
+                    <button class="btn-ghost text-xs !border !border-surface-700 !rounded-full" onclick="sendSuggested(this)">What is algorithmic bias?</button>
+                    <button class="btn-ghost text-xs !border !border-surface-700 !rounded-full" onclick="sendSuggested(this)">Explain statistical parity</button>
+                    <button class="btn-ghost text-xs !border !border-surface-700 !rounded-full" onclick="sendSuggested(this)">How to mitigate bias?</button>
+                    <button class="btn-ghost text-xs !border !border-surface-700 !rounded-full" onclick="sendSuggested(this)">What is disparate impact?</button>
+                    <button class="btn-ghost text-xs !border !border-surface-700 !rounded-full" onclick="sendSuggested(this)">Analyze my current dataset</button>
+                </div>
+
+                <!-- Input -->
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" class="input-field flex-1" placeholder="Type your question..." onkeydown="if(event.key==='Enter')sendChatMessage()">
+                    <button class="btn-primary px-5" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== REPORTS PAGE ==================== -->
+        <div id="page-reports" class="page p-6">
+            <div class="mb-6">
+                <h2 class="font-display text-3xl font-bold text-white mb-2">Analysis Reports</h2>
+                <p class="text-muted">History of all bias detection analyses run in this session</p>
+            </div>
+            <div id="reports-list" class="space-y-4">
+                <div class="card text-center py-12">
+                    <div class="w-16 h-16 rounded-full bg-surface-700 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-folder-open text-muted text-2xl"></i>
+                    </div>
+                    <p class="text-white font-semibold mb-1">No Reports Yet</p>
+                    <p class="text-sm text-muted mb-4">Run the Detection Pipeline to generate your first report</p>
+                    <button class="btn-primary text-sm" onclick="navigateTo('pipeline')">Go to Pipeline</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    /* ================================================================
+       STATE MANAGEMENT
+       ================================================================ */
+    const AppState = {
+        currentPage: 'dashboard',
+        pipelineStep: 1,
+        dataSource: 'builtin', // 'builtin' or 'upload'
+        currentDataset: null,
+        currentHeaders: [],
+        uploadedDataset: null,
+        uploadedHeaders: [],
+        analysisResults: null,
+        analysisHistory: [],
+        charts: {}
     };
-    reader.readAsText(file);
-  };
 
-  const handleMapping=config=>{
-    setCustomConfig(config);setShowMapper(false);
-  };
+    /* ================================================================
+       BUILT-IN DATASET GENERATION
+       ================================================================ */
+    function generateBuiltInDataset() {
+        const rng = (function(seed) {
+            let s = seed;
+            return function() { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+        })(42);
 
-  const handleDetect=()=>{
-    if(!canDetect)return;setLoading(true);setMitigResult(null);
-    setTimeout(()=>{
-      const result=source==="builtin"?detectBiasBuiltIn(dataset):detectBiasCustom(dataset,customConfig.protectedCol,customConfig.outcomeCol,customConfig.positiveValue);
-      setBiasResult(result);setStep("detected");setLoading(false);
-    },500);
-  };
+        const genders = ['Male','Male','Male','Female','Female','Female','Non-binary'];
+        const races = ['White','White','White','Black','Black','Asian','Asian','Hispanic','Hispanic','Other'];
+        const educations = ['High School','Bachelor','Bachelor','Master','Master','PhD'];
+        const departments = ['Engineering','Engineering','Marketing','Sales','Operations','HR','Finance'];
 
-  const handleMitigate=()=>{
-    if(!biasResult)return;setLoading(true);
-    setTimeout(()=>{
-      const result=source==="builtin"?mitigateBiasBuiltIn(dataset,biasResult):mitigateBiasCustom(dataset,biasResult);
-      setMitigResult(result);setStep("mitigated");setLoading(false);
-    },500);
-  };
+        const data = [];
+        for (let i = 0; i < 100; i++) {
+            const gender = genders[Math.floor(rng() * genders.length)];
+            const race = races[Math.floor(rng() * races.length)];
+            const education = educations[Math.floor(rng() * educations.length)];
+            const experience = Math.floor(rng() * 18) + 1;
+            const age = Math.floor(rng() * 28) + 22;
+            const interviewScore = Math.floor(rng() * 35) + 65;
+            const department = departments[Math.floor(rng() * departments.length)];
 
-  const handleReset=()=>{setBiasResult(null);setMitigResult(null);setStep("idle")};
+            // Intentional bias: males and white candidates have higher hire probability
+            let hireProb = 0.42;
+            if (gender === 'Male') hireProb += 0.18;
+            if (race === 'White') hireProb += 0.14;
+            if (education === 'Master') hireProb += 0.08;
+            if (education === 'PhD') hireProb += 0.12;
+            if (experience > 7) hireProb += 0.06;
+            if (interviewScore > 85) hireProb += 0.1;
 
-  /* Build table rows */
-  const tableRows=dataset.map((row,i)=>{
-    const br=biasResult?.dataset?.[i];
-    const mr=mitigResult?.dataset?.[i];
-    if(source==="builtin"){
-      return{...row,biased_pred:br?.biased_pred??null,fair_pred:mr?.fair_pred??null};
+            const hired = rng() < hireProb ? 'Yes' : 'No';
+            const salary = hired === 'Yes' ? Math.floor(55000 + rng() * 65000) : 0;
+
+            data.push({
+                id: i + 1, age, gender, race, education,
+                experience_years: experience, department,
+                interview_score: interviewScore, hired, salary
+            });
+        }
+        return data;
     }
-    return{...row,biased_pred:br?.biased_pred??null,fair_pred:mr?.fair_pred??null};
-  });
 
-  const biasedDI=biasResult?.di_score??null;
-  const fairDI=mitigResult?.fair_di_score??null;
-  const protCol=source==="builtin"?"Gender":(customConfig?.protectedCol||"");
-  const outCol=source==="builtin"?"true_label":(customConfig?.outcomeCol||"");
+    const builtInData = generateBuiltInDataset();
+    const builtInHeaders = ['id','age','gender','race','education','experience_years','department','interview_score','hired','salary'];
 
-  /* Determine table display columns */
-  const displayCols=source==="builtin"
-    ?[{k:"Income",l:"Income"},{k:"Term",l:"Term"},{k:"Gender",l:"Gender"},{k:"true_label",l:"True Label"}]
-    :customHeaders.slice(0,6).map(h=>({k:h,l:h}));
+    /* ================================================================
+       NAVIGATION
+       ================================================================ */
+    function navigateTo(page) {
+        // Update sidebar
+        document.querySelectorAll('.sidebar-link').forEach(el => {
+            el.classList.toggle('active', el.dataset.page === page);
+        });
+        // Update pages
+        document.querySelectorAll('.page').forEach(el => {
+            el.classList.remove('active');
+        });
+        const target = document.getElementById('page-' + page);
+        if (target) {
+            // Small delay for fade effect
+            setTimeout(() => target.classList.add('active'), 10);
+        }
+        // Update title
+        const titles = { dashboard:'Dashboard', pipeline:'Detection Pipeline', chatbot:'AI Chatbot', reports:'Reports' };
+        document.getElementById('page-title').textContent = titles[page] || page;
+        AppState.currentPage = page;
 
-  /* Status panel */
-  let statusCls="card-inset s-idle";
-  let statusContent=<p className="text-sm t-gray-300 text-gray-300 leading-relaxed">Click <strong className="t-purple-400 text-purple-400">Detect Bias</strong> to run the analysis.</p>;
-
-  if(step==="detected"&&biasResult){
-    const ib=biasResult.verdict==="biased";
-    statusCls=ib?"s-biased":"s-marginal";
-    statusContent=(<><p className="text-sm leading-relaxed"><span className={ib?"t-red-400 text-red-400 font-semibold":"t-yellow-400 text-yellow-400 font-semibold"}>{ib?"⚠ Bias Detected":"⚠ Marginal Fairness"}</span>{" — "}DI = <strong className="t-white text-white">{biasResult.di_score.toFixed(3)}</strong>{ib?" (below 0.8).":" (between 0.8 and 0.9)."}</p>
-    {biasResult.groupRates&&<p className="t-gray-400 text-gray-400 text-xs mt-1">Group rates: {Object.entries(biasResult.groupRates).map(([g,r])=>`${g}: ${(r*100).toFixed(0)}%`).join(" vs ")}{". "}Click <strong className="t-emerald-400 text-emerald-400">Apply CF Fairness</strong> to fix.</p>}</>);
-  }
-  if(step==="mitigated"&&mitigResult){
-    statusCls="s-fair";
-    statusContent=(<><p className="text-sm leading-relaxed"><span className="t-emerald-400 text-emerald-400 font-semibold">✔ Mitigation Applied</span>{" — "}DI: <strong className="t-red-400 text-red-400">{biasedDI?.toFixed(3)}</strong>{" → "}<strong className="t-emerald-400 text-emerald-400">{fairDI?.toFixed(3)}</strong>.</p><p className="t-gray-400 text-gray-400 text-xs mt-1">Outcomes equalized across groups. <span className="t-emerald-500 text-emerald-500">IEEE 7003-2024 compliant.</span></p></>);
-  }
-
-  return(
-    <section id="prototype" className="mt-14">
-      {showMapper&&<ColumnMapper headers={customHeaders} rows={customRows} onConfirm={handleMapping} onCancel={()=>{setShowMapper(false)}}/>}
-      <div className="flex items-center gap-3 mb-1"><div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div><h2 className="text-xl font-bold t-white text-white">Prototype — FairLens Bias Detection Pipeline</h2></div>
-      <p className="text-xs t-gray-500 text-gray-500 ml-5 mb-5">Live interactive demo · Built-in or custom datasets · Self-contained engine · IEEE 7003-2024</p>
-
-      <div className="card-prototype bg-gray-950/80 border border-emerald-500/10 rounded-2xl p-5 md:p-7">
-        {/* Source Tabs */}
-        <div className="flex items-center gap-2 mb-5">
-          <button onClick={()=>{setSource("builtin");handleReset()}} className={`src-tab ${source==="builtin"?"src-tab-active":"src-tab-inactive"}`}><i className="fas fa-database mr-1"></i>Built-in Dataset</button>
-          <button onClick={()=>setSource("custom")} className={`src-tab ${source==="custom"?"src-tab-active":"src-tab-inactive"}`}><i className="fas fa-upload mr-1"></i>Upload CSV</button>
-        </div>
-
-        {/* Upload Zone */}
-        {source==="custom"&&(
-          <div className="mb-5">
-            {!customConfig?(
-              <div className="upload-zone" onClick={()=>fileRef.current?.click()} onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("drag-over")}} onDragLeave={e=>e.currentTarget.classList.remove("drag-over")} onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove("drag-over");const f=e.dataTransfer.files?.[0];if(f){const dt=new DataTransfer();dt.items.add(f);fileRef.current.files=dt.files;handleFile({target:{files:[f]}})}}}>
-                <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile}/>
-                <i className="fas fa-cloud-upload-alt t-emerald-400 text-emerald-400 text-2xl mb-2"></i>
-                <p className="t-gray-300 text-gray-300 text-sm font-semibold">Drop your CSV here or click to browse</p>
-                <p className="t-gray-500 text-gray-500 text-xs mt-1">Must include a protected attribute column and an outcome column</p>
-              </div>
-            ):(
-              <div className="flex items-center gap-3 bg-emerald-900/20 border border-emerald-500/20 rounded-lg px-4 py-2.5 text-xs">
-                <i className="fas fa-check-circle t-emerald-400 text-emerald-400"></i>
-                <span className="t-gray-300 text-gray-300"><strong className="t-white text-white">{customRows.length}</strong> rows loaded · Protected: <strong className="t-emerald-400 text-emerald-400">{customConfig.protectedCol}</strong> · Outcome: <strong className="t-purple-400 text-purple-400">{customConfig.outcomeCol}</strong> = "{customConfig.positiveValue}"</span>
-                <button onClick={()=>{setCustomConfig(null);setCustomRows([]);setCustomHeaders([]);handleReset()}} className="ml-auto t-gray-500 text-gray-500 hover:t-red-400 hover:text-red-400 transition"><i className="fas fa-times"></i></button>
-              </div>
-            )}
-            {fileError&&<p className="text-red-400 text-xs mt-2">{fileError}</p>}
-          </div>
-        )}
-
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-6 text-[11px] t-gray-500 text-gray-500">
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-shield-alt mr-1 t-emerald-500 text-emerald-500"></i>Protected: {protCol||"—"}</span>
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-users mr-1 t-purple-400 text-purple-400"></i>{dataset.length} applicants</span>
-          {source==="builtin"&&<span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-exclamation-circle mr-1 t-red-400 text-red-400"></i>Biased model: −12 pt gender penalty</span>}
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-microchip mr-1 t-blue-300 text-blue-300"></i>Self-contained engine</span>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-          <div className="lg:col-span-3 card-inset bg-black/20 border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold t-white text-white mb-3 flex items-center gap-2"><i className="fas fa-table t-emerald-400 text-emerald-400 text-xs"></i>Dataset{loading&&<span className="spin t-emerald-400 text-emerald-400 text-xs ml-1"><i className="fas fa-circle-notch"></i></span>}</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left t-gray-400 text-gray-400">
-                <thead><tr className="table-header bg-gray-800/50 t-gray-500 text-gray-500 text-[10px] uppercase tracking-wider">
-                  <th className="px-2 py-2">#</th>
-                  {displayCols.map(c=><th key={c.k} className="px-2 py-2">{c.l}</th>)}
-                  <th className="px-2 py-2">Biased Pred</th>
-                  <th className="px-2 py-2">Fair Pred</th>
-                </tr></thead>
-                <tbody>
-                  {tableRows.length===0?<tr><td colSpan={3+displayCols.length} className="text-center py-6 t-gray-600 text-gray-600 text-xs">{source==="custom"?"Upload a CSV to begin.":"Loading…"}</td></tr>:
-                  tableRows.slice(0,20).map((row,i)=>(
-                    <tr key={i} className="tbl-row">
-                      <td className="px-2 py-1.5 t-gray-600 text-gray-600 text-[10px]">{i+1}</td>
-                      {displayCols.map(c=>(
-                        <td key={c.k} className="px-2 py-1.5">
-                          {c.k===protCol?<span className={`px-1.5 py-0.5 rounded text-[10px] font-bold b-blue`}>{String(row[c.k])}</span>:String(row[c.k])}
-                        </td>
-                      ))}
-                      <td className="px-2 py-1.5">{step!=="idle"?<PredBadge pred={row.biased_pred} trueLabel={row[outCol]}/>:<span className="t-gray-600 text-gray-600">—</span>}</td>
-                      <td className="px-2 py-1.5">{row.fair_pred!==null&&row.fair_pred!==undefined?<PredBadge pred={row.fair_pred} trueLabel={row[outCol]}/>:<span className="t-gray-600 text-gray-600">—</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {tableRows.length>20&&<p className="text-[10px] t-gray-500 text-gray-500 mt-2 text-center">Showing 20 of {tableRows.length} rows</p>}
-            </div>
-            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-ds border-white/[0.05]">
-              <button onClick={handleDetect} disabled={loading||!canDetect} className="flex items-center gap-1.5 bg-purple-700 hover:bg-purple-600 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"><i className="fas fa-search"></i>1. Detect Bias</button>
-              <button onClick={handleMitigate} disabled={loading||step==="idle"} className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"><i className="fas fa-sync-alt"></i>2. Apply CF Fairness</button>
-              <button onClick={handleReset} disabled={loading} className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 active:scale-95 t-gray-300 text-gray-300 text-xs font-medium px-4 py-2 rounded-lg transition-all"><i className="fas fa-undo-alt"></i>Reset</button>
-            </div>
-          </div>
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            <div className="card-inset bg-black/20 border border-white/[0.06] rounded-xl p-4">
-              <h3 className="text-xs font-semibold t-gray-500 text-gray-500 uppercase tracking-wider mb-4">Disparate Impact Score</h3>
-              <div className="flex items-center justify-center gap-5">
-                <div className="text-center"><GaugeSVG value={biasedDI} color={diColor(biasedDI)}/><div className="text-xl font-black t-purple-400 text-purple-400 mt-1">{biasedDI!==null?biasedDI.toFixed(3):"—"}</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Biased DI</div></div>
-                <div className={`t-emerald-400 text-emerald-400 font-black text-xl ${fairDI!==null?"":"hidden"}`}>→</div>
-                <div className="text-center"><GaugeSVG value={fairDI} color={diColor(fairDI)}/><div className="text-xl font-black t-emerald-400 text-emerald-400 mt-1">{fairDI!==null?fairDI.toFixed(3):"—"}</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Fair DI</div></div>
-              </div>
-              <div className="mt-5"><div className="di-track">{biasedDI!==null&&<div className="di-pin bg-white" style={{left:`${Math.min(Math.max(biasedDI,0),1)*100}%`}}></div>}{fairDI!==null&&<div className="di-pin bg-emerald-400" style={{left:`${Math.min(Math.max(fairDI,0),1)*100}%`}}></div>}</div><div className="flex justify-between text-[9px] t-gray-600 text-gray-600 mt-1.5"><span>0.0 Biased</span><span>0.8</span><span>0.9</span><span>1.0 Fair</span></div></div>
-              <div className="mt-4 pt-3 border-t border-ds border-white/[0.05] space-y-1.5 text-[11px]">
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all sc-ok ${biasedDI!==null&&biasedDI>=0.9?"bg-emerald-900/20 border border-emerald-500/20":""}`}><span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span><span className="t-gray-400 text-gray-400"><span className="t-emerald-400 text-emerald-400 font-bold">DI ≥ 0.9</span> — Fair</span></div>
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all sc-bad ${biasedDI!==null&&biasedDI<=0.8?"bg-red-900/20 border border-red-500/20":""}`}><span className="w-2 h-2 rounded-full bg-red-400 shrink-0"></span><span className="t-gray-400 text-gray-400"><span className="t-red-400 text-red-400 font-bold">DI ≤ 0.8</span> — Biased (IEEE violation)</span></div>
-              </div>
-            </div>
-            <div className={`${statusCls} rounded-xl p-4 flex-1 card-inset bg-black/20 border border-white/[0.06]`}><p className="text-[10px] t-gray-500 text-gray-500 uppercase tracking-wider mb-2"><i className="fas fa-circle-info t-emerald-500 text-emerald-500 mr-1"></i>Pipeline Status</p>{statusContent}</div>
-            {step==="mitigated"&&biasResult&&mitigResult&&(<div className="grid grid-cols-2 gap-3"><div className="card-inset bg-black/20 border border-white/[0.06] rounded-xl p-3 text-center"><div className="text-base font-black t-red-400 text-red-400">{(biasResult.approval_rate_female*100).toFixed(0)}%</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Biased Min-Group Rate</div></div><div className="card-inset bg-black/20 border border-white/[0.06] rounded-xl p-3 text-center"><div className="text-base font-black t-emerald-400 text-emerald-400">{(mitigResult.approval_rate_female*100).toFixed(0)}%</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Fair Min-Group Rate</div></div></div>)}
-          </div>
-        </div>
-        <div className="mt-5 pt-4 border-t border-ds border-white/[0.05] grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] t-gray-500 text-gray-500">
-          <div><span className="t-purple-400 text-purple-400 font-bold">DI Formula: </span>Min group rate ÷ Max group rate</div>
-          <div><span className="t-red-400 text-red-400 font-bold">DI ≤ 0.8: </span>Discriminatory — IEEE 7003-2024 violation</div>
-          <div><span className="t-emerald-400 text-emerald-400 font-bold">DI ≥ 0.9: </span>Fair — IEEE 7003-2024 compliant</div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── CHATBOT ── */
-const SYSTEM_PROMPT = `You are the FairLens AI Coach — a precise, analytically rigorous assistant for CS 323 at NEMSU. Built by Emmanuel Amista under Dr. Catherine R. Alimboyong.
-
-LANGUAGE AUTO-DETECTION (MANDATORY): Detect the user's language and respond in the SAME language. English→English, Filipino/Tagalog→Filipino, Cebuano/Bisaya→Cebuano. Never switch unless explicitly requested.
-
-ANALYTICAL DEPTH: For complex questions, use structured step-by-step reasoning: 1) Define the concept 2) Explain WHY it matters 3) Provide evidence from allowed references 4) Note limitations.
-
-ALLOWED REFERENCES (ONLY cite from this list — NEVER invent):
-1. Mehrabi et al. (2021) — ACM Computing Surveys 54(6). https://arxiv.org/abs/1908.09635
-2. Barocas, Hardt & Narayanan (2023) — MIT Press. https://fairmlbook.org/
-3. Ferrara (2024) — Sci 6(1). https://doi.org/10.3390/sci6010023
-4. Buolamwini & Gebru (2018) — PMLR 81. https://proceedings.mlr.press/v81/buolamwini18a.html
-5. Pessach & Shmueli (2022) — ACM Computing Surveys 55(3). https://arxiv.org/abs/2201.04364
-6. ProPublica / Angwin et al. (2016). https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing
-7. Reuters / Dastin (2018). https://www.reuters.com/article/us-amazon-com-jobs-automation-insight/amazon-scraps-secret-ai-recruiting-tool-that-showed-bias-against-women-idUSKCN1MK08G
-
-VERIFIED STATS: Gender Shades 34.7% vs 0.8% error (Buolamwini & Gebru 2018). COMPAS 45% vs 24% FPR (ProPublica 2016). Amazon scrapped 2018 (Reuters 2018). DI=protected_rate/majority_rate. DI≥0.9 fair, 0.8-0.9 marginal, ≤0.8 biased (IEEE 7003-2024). FairLens: −12pt female penalty, fair model removes it. Counterfactual fairness (Barocas et al. 2023). ACM 1.2, 1.4, 2.5.
-
-RULES: 1) Analytical depth with step-by-step for complex Qs. 2) ONLY cite from list above. 3) NEVER fabricate stats/authors. 4) If uncertain say so. 5) If outside scope say so. 6) ALWAYS match user language. 7) No filler openings.`;
-
-function Chatbot(){
-  const[isOpen,setIsOpen]=useState(false);
-  const[history,setHistory]=useState([]);
-  const[input,setInput]=useState("");
-  const[isLoading,setIsLoading]=useState(false);
-  const[messages,setMessages]=useState([]);
-  const[showKeyConfig,setShowKeyConfig]=useState(false);
-  const[apiKey,setApiKey]=useState(()=>{
-    try{return localStorage.getItem("fairlens-groq-key")||""}catch{return""}
-  });
-  const[apiError,setApiError]=useState(null);
-  const endRef=useRef(null);
-  const abortRef=useRef(null);
-
-  const activeKey=apiKey||DEFAULT_GROQ_KEY;
-
-  useEffect(()=>{
-    setMessages([{role:"bot",html:`<p>Hello! I'm the <strong>FairLens AI Coach</strong>.<br>Ask me about algorithmic bias, fairness metrics, or how this pipeline works. I can respond in <strong>English</strong>, <strong>Filipino/Tagalog</strong>, or <strong>Cebuano/Bisaya</strong> — just type in your preferred language!</p>`}];
-    setHistory([]);setInput("");
-  },[]);
-
-  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[messages,isLoading]);
-
-  const saveKey=k=>{setApiKey(k);try{localStorage.setItem("fairlens-groq-key",k)}catch{}};
-
-  const sendMessage=useCallback(async(text)=>{
-    if(!text.trim()||isLoading)return;
-    const ut=text.trim();setInput("");setApiError(null);
-    setMessages(p=>[...p,{role:"user",text:ut}]);
-    const nh=[...history,{role:"user",content:ut}];setHistory(nh);setIsLoading(true);
-    let reply;
-    try{
-      const ctrl=new AbortController();abortRef.current=ctrl;
-      const res=await fetch(GROQ_URL,{
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":`Bearer ${activeKey}`},
-        body:JSON.stringify({model:"llama-3.3-70b-versatile",messages:[{role:"system",content:SYSTEM_PROMPT},...nh],temperature:0.4,max_tokens:800,top_p:0.9,frequency_penalty:0.25,presence_penalty:0.1}),
-        signal:ctrl.signal
-      });
-      const data=await res.json();
-      if(!res.ok){
-        const errMsg=data.error?.message||"Unknown error";
-        if(res.status===401){setApiError("⚠ Invalid API key. Click the key icon to enter your own Groq API key.");reply="⚠ **API Key Error**: Your Groq API key is invalid or expired. Please click the 🔑 icon in the chat header to enter your own free API key from [console.groq.com](https://console.groq.com)."}
-        else if(res.status===429){setApiError("⚠ Rate limited. Wait a moment or use your own API key.");reply="⚠ **Rate Limited**: Too many requests. Please wait 30 seconds and try again, or click the 🔑 icon to use your own API key."}
-        else{reply=`⚠ API error ${res.status}: ${errMsg}`}
-      }else{
-        reply=data.choices?.[0]?.message?.content||"(Empty response.)";
-      }
-    }catch(e){
-      if(e.name==="AbortError"){setIsLoading(false);return}
-      reply="⚠ Network error. Check your connection.";
+        // Close mobile sidebar
+        document.getElementById('sidebar').classList.remove('open');
     }
-    let fmt=reply.replace(/\*\*(.*?)\*\*/g,'<strong class="t-white text-white">$1</strong>').replace(/\*(.*?)\*/g,'<em class="t-gray-300 text-gray-300">$1</em>').replace(/\n\n/g,'</p><p class="mt-2">').replace(/\n/g,"<br>");
-    fmt=linkifyChatRefs(fmt);
-    const th=nh.length>18?nh.slice(-18):nh;
-    setHistory([...th,{role:"assistant",content:reply}]);
-    setMessages(p=>[...p,{role:"bot",html:`<p>${fmt}</p>`}]);setIsLoading(false);
-  },[history,isLoading,activeKey]);
 
-  return(
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-      {isOpen&&(
-        <div className="chat-window flex flex-col w-80 sm:w-96 rounded-2xl overflow-hidden" style={{maxHeight:"560px",boxShadow:"0 20px 60px rgba(0,0,0,0.65),0 0 0 1px rgba(0,196,122,0.12)",background:"#08101e"}}>
-          <div className="chat-header flex items-center justify-between px-4 py-3 border-b shrink-0" style={{background:"#0d1826",borderColor:"rgba(255,255,255,0.07)"}}>
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0"><i className="fas fa-balance-scale t-emerald-400 text-emerald-400 text-xs"></i></div>
-              <div><div className="text-sm font-semibold t-white text-white leading-tight">FairLens AI Coach</div><div className="text-[10px] t-emerald-500 text-emerald-500 leading-tight">Multilingual · EN · FIL · CEB</div></div>
+    /* ================================================================
+       PIPELINE STEP NAVIGATION
+       ================================================================ */
+    function goToStep(step) {
+        // Validation before moving forward
+        if (step === 2) {
+            const ds = AppState.dataSource === 'builtin' ? builtInData : AppState.uploadedDataset;
+            if (!ds || ds.length === 0) {
+                showToast('Please select a data source first', 'error');
+                return;
+            }
+            populateColumnSelectors();
+        }
+        if (step === 3) {
+            const prot = document.getElementById('select-protected').value;
+            const out = document.getElementById('select-outcome').value;
+            const ref = document.getElementById('select-reference').value;
+            const fav = document.getElementById('select-favorable').value;
+            if (!prot || !out || !ref || !fav) {
+                showToast('Please fill in all configuration fields', 'error');
+                return;
+            }
+            renderReviewConfig();
+        }
+
+        AppState.pipelineStep = step;
+
+        // Show/hide step content
+        document.querySelectorAll('.pipeline-step').forEach((el, i) => {
+            el.style.display = (i + 1 === step) ? 'block' : 'none';
+        });
+
+        // Update step indicators
+        document.querySelectorAll('.step-dot').forEach(dot => {
+            const s = parseInt(dot.dataset.step);
+            dot.classList.remove('active','done');
+            if (s === step) dot.classList.add('active');
+            else if (s < step) dot.classList.add('done');
+        });
+        document.querySelectorAll('.step-line').forEach((line, i) => {
+            line.classList.toggle('done', i + 1 < step);
+        });
+    }
+
+    /* ================================================================
+       DATA SOURCE TAB SWITCHING
+       ================================================================ */
+    function switchSourceTab(tab) {
+        AppState.dataSource = tab;
+        document.getElementById('builtin-tab').style.display = tab === 'builtin' ? 'block' : 'none';
+        document.getElementById('upload-tab').style.display = tab === 'upload' ? 'block' : 'none';
+        document.getElementById('builtin-tab-btn').className = tab === 'builtin' ? 'btn-primary text-sm' : 'btn-secondary text-sm';
+        document.getElementById('upload-tab-btn').className = tab === 'upload' ? 'btn-primary text-sm' : 'btn-secondary text-sm';
+
+        // Update indicator
+        const ind = document.getElementById('dataset-indicator');
+        if (tab === 'builtin') {
+            ind.innerHTML = '<i class="fas fa-database mr-1"></i>Built-in Dataset';
+            ind.className = 'badge badge-green text-xs';
+        } else if (AppState.uploadedDataset) {
+            ind.innerHTML = '<i class="fas fa-upload mr-1"></i>Custom Dataset';
+            ind.className = 'badge badge-blue text-xs';
+        } else {
+            ind.innerHTML = '<i class="fas fa-upload mr-1"></i>No File Uploaded';
+            ind.className = 'badge badge-yellow text-xs';
+        }
+    }
+
+    /* ================================================================
+       FILE UPLOAD HANDLING
+       ================================================================ */
+    function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); document.getElementById('drop-zone').classList.add('drag-over'); }
+    function handleDragLeave(e) { e.preventDefault(); e.stopPropagation(); document.getElementById('drop-zone').classList.remove('drag-over'); }
+    function handleDrop(e) {
+        e.preventDefault(); e.stopPropagation();
+        document.getElementById('drop-zone').classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) processFile(files[0]);
+    }
+    function handleFileSelect(e) {
+        const files = e.target.files;
+        if (files.length > 0) processFile(files[0]);
+    }
+
+    function processFile(file) {
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('File too large. Maximum size is 10MB.', 'error');
+            return;
+        }
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['csv','json','tsv'].includes(ext)) {
+            showToast('Unsupported file type. Please use CSV, TSV, or JSON.', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                let parsed;
+
+                if (ext === 'json') {
+                    parsed = parseJSON(text);
+                } else {
+                    parsed = parseCSV(text, ext === 'tsv' ? '\t' : ',');
+                }
+
+                if (!parsed.headers || parsed.headers.length === 0 || !parsed.data || parsed.data.length === 0) {
+                    showToast('Could not parse file. Check format and try again.', 'error');
+                    return;
+                }
+
+                AppState.uploadedDataset = parsed.data;
+                AppState.uploadedHeaders = parsed.headers;
+
+                // Update UI
+                document.getElementById('upload-filename').textContent = file.name;
+                document.getElementById('upload-fileinfo').textContent = `${parsed.data.length} records · ${parsed.headers.length} columns`;
+                document.getElementById('upload-preview').style.display = 'block';
+                document.getElementById('drop-zone').style.display = 'none';
+
+                // Render preview table
+                renderTable('upload-table', parsed.headers, parsed.data.slice(0, 5));
+
+                // Update indicator
+                const ind = document.getElementById('dataset-indicator');
+                ind.innerHTML = '<i class="fas fa-upload mr-1"></i>Custom Dataset';
+                ind.className = 'badge badge-blue text-xs';
+
+                // Update dashboard stats
+                document.getElementById('stat-records').textContent = parsed.data.length;
+                document.getElementById('stat-columns').textContent = parsed.headers.length;
+
+                showToast(`Dataset loaded: ${parsed.data.length} records, ${parsed.headers.length} columns`, 'success');
+            } catch (err) {
+                showToast('Error parsing file: ' + err.message, 'error');
+            }
+        };
+        reader.onerror = function() { showToast('Error reading file', 'error'); };
+        reader.readAsText(file);
+    }
+
+    function clearUploadedFile() {
+        AppState.uploadedDataset = null;
+        AppState.uploadedHeaders = [];
+        document.getElementById('upload-preview').style.display = 'none';
+        document.getElementById('drop-zone').style.display = 'block';
+        document.getElementById('file-input').value = '';
+        switchSourceTab('upload');
+    }
+
+    /* ================================================================
+       CSV / JSON PARSERS
+       ================================================================ */
+    function parseCSV(text, delimiter) {
+        delimiter = delimiter || ',';
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) return { headers: [], data: [] };
+
+        const headers = parseCSVLine(lines[0], delimiter);
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = parseCSVLine(lines[i], delimiter);
+            if (values.length === 0) continue;
+            const row = {};
+            headers.forEach((h, idx) => { row[h] = values[idx] !== undefined ? values[idx].trim() : ''; });
+            data.push(row);
+        }
+        return { headers, data };
+    }
+
+    function parseCSVLine(line, delimiter) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (inQuotes) {
+                if (ch === '"') {
+                    if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+                    else { inQuotes = false; }
+                } else { current += ch; }
+            } else {
+                if (ch === '"') { inQuotes = true; }
+                else if (ch === delimiter) { result.push(current); current = ''; }
+                else { current += ch; }
+            }
+        }
+        result.push(current);
+        return result.map(v => v.trim());
+    }
+
+    function parseJSON(text) {
+        const obj = JSON.parse(text);
+        let arr = Array.isArray(obj) ? obj : (obj.data && Array.isArray(obj.data)) ? obj.data : null;
+        if (!arr || arr.length === 0) return { headers: [], data: [] };
+
+        const headers = Object.keys(arr[0]);
+        const data = arr.map(item => {
+            const row = {};
+            headers.forEach(h => { row[h] = item[h] !== undefined ? String(item[h]) : ''; });
+            return row;
+        });
+        return { headers, data };
+    }
+
+    /* ================================================================
+       TABLE RENDERING
+       ================================================================ */
+    function renderTable(tableId, headers, data) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        const thead = table.querySelector('thead tr');
+        const tbody = table.querySelector('tbody');
+        thead.innerHTML = headers.map(h => `<th>${escHtml(h)}</th>`).join('');
+        tbody.innerHTML = data.map(row =>
+            '<tr>' + headers.map(h => `<td>${escHtml(row[h] || '')}</td>`).join('') + '</tr>'
+        ).join('');
+    }
+
+    function escHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    /* ================================================================
+       COLUMN SELECTORS (Step 2)
+       ================================================================ */
+    function populateColumnSelectors() {
+        const ds = AppState.dataSource === 'builtin' ? builtInData : AppState.uploadedDataset;
+        const headers = AppState.dataSource === 'builtin' ? builtInHeaders : AppState.uploadedHeaders;
+
+        if (!ds || ds.length === 0) return;
+
+        // Detect column types
+        const colInfo = {};
+        headers.forEach(h => {
+            const vals = ds.map(r => r[h]).filter(v => v !== '' && v !== undefined);
+            const unique = [...new Set(vals)];
+            const numericCount = vals.filter(v => !isNaN(Number(v))).length;
+            colInfo[h] = {
+                unique: unique.length,
+                isCategorical: unique.length <= 20 && numericCount / vals.length < 0.8,
+                isNumeric: numericCount / vals.length > 0.8,
+                values: unique.slice(0, 50)
+            };
+        });
+
+        // Populate protected attribute selector (categorical columns)
+        const protSel = document.getElementById('select-protected');
+        protSel.innerHTML = '<option value="">-- Select column --</option>';
+        headers.forEach(h => {
+            if (colInfo[h].isCategorical && h !== 'id') {
+                protSel.innerHTML += `<option value="${h}">${h} (${colInfo[h].unique} groups)</option>`;
+            }
+        });
+
+        // Populate outcome selector
+        const outSel = document.getElementById('select-outcome');
+        outSel.innerHTML = '<option value="">-- Select column --</option>';
+        headers.forEach(h => {
+            if (colInfo[h].isCategorical && colInfo[h].unique <= 10 && h !== 'id') {
+                outSel.innerHTML += `<option value="${h}">${h} (${colInfo[h].unique} values)</option>`;
+            }
+        });
+
+        // Auto-select for built-in dataset
+        if (AppState.dataSource === 'builtin') {
+            protSel.value = 'gender';
+            updateReferenceGroups();
+            outSel.value = 'hired';
+            updateOutcomeValues();
+            document.getElementById('select-reference').value = 'Male';
+            document.getElementById('select-favorable').value = 'Yes';
+        }
+
+        AppState.currentDataset = ds;
+        AppState.currentHeaders = headers;
+        AppState._colInfo = colInfo;
+    }
+
+    function updateReferenceGroups() {
+        const prot = document.getElementById('select-protected').value;
+        const refSel = document.getElementById('select-reference');
+        refSel.innerHTML = '<option value="">-- Select group --</option>';
+
+        if (!prot || !AppState.currentDataset) return;
+
+        const groups = [...new Set(AppState.currentDataset.map(r => r[prot]).filter(Boolean))];
+        groups.forEach(g => { refSel.innerHTML += `<option value="${g}">${g}</option>`; });
+
+        // Show preview chart
+        showColumnPreview(prot, groups);
+    }
+
+    function updateOutcomeValues() {
+        const out = document.getElementById('select-outcome').value;
+        const favSel = document.getElementById('select-favorable');
+        favSel.innerHTML = '<option value="">-- Select value --</option>';
+
+        if (!out || !AppState.currentDataset) return;
+
+        const vals = [...new Set(AppState.currentDataset.map(r => r[out]).filter(Boolean))];
+        vals.forEach(v => { favSel.innerHTML += `<option value="${v}">${v}</option>`; });
+    }
+
+    function showColumnPreview(col, groups) {
+        const previewDiv = document.getElementById('column-preview');
+        const canvas = document.getElementById('column-preview-chart');
+        previewDiv.style.display = 'block';
+
+        const counts = {};
+        groups.forEach(g => { counts[g] = 0; });
+        AppState.currentDataset.forEach(r => {
+            const v = r[col];
+            if (counts[v] !== undefined) counts[v]++;
+        });
+
+        if (AppState.charts.columnPreview) AppState.charts.columnPreview.destroy();
+        AppState.charts.columnPreview = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: groups,
+                datasets: [{ label: 'Count', data: groups.map(g => counts[g]),
+                    backgroundColor: groups.map((_, i) => `hsla(${160 + i * 30}, 70%, 55%, 0.7)`), borderRadius: 4 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#8899aa' }, grid: { display: false } },
+                    y: { ticks: { color: '#8899aa' }, grid: { color: 'rgba(42,58,78,0.3)' } }
+                }
+            }
+        });
+    }
+
+    /* ================================================================
+       REVIEW CONFIG (Step 3)
+       ================================================================ */
+    function renderReviewConfig() {
+        const prot = document.getElementById('select-protected').value;
+        const out = document.getElementById('select-outcome').value;
+        const ref = document.getElementById('select-reference').value;
+        const fav = document.getElementById('select-favorable').value;
+        const ds = AppState.dataSource === 'builtin' ? builtInData : AppState.uploadedDataset;
+        const srcLabel = AppState.dataSource === 'builtin' ? 'Built-in Dataset' : 'Custom Uploaded Dataset';
+
+        document.getElementById('review-config').innerHTML = `
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface-800">
+                <i class="fas fa-database text-accent w-5 text-center"></i>
+                <div><p class="text-xs text-muted">Data Source</p><p class="text-sm text-white font-medium">${srcLabel} (${ds.length} records)</p></div>
             </div>
-            <div className="flex items-center gap-1">
-              <button onClick={()=>setShowKeyConfig(v=>!v)} className="w-7 h-7 flex items-center justify-center rounded-lg t-gray-500 text-gray-500 hover:t-yellow-400 hover:text-yellow-400 hover:bg-white/10 transition" title="Configure API Key"><i className="fas fa-key text-xs"></i></button>
-              <button onClick={()=>setIsOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-lg t-gray-500 text-gray-500 hover:t-white hover:text-white hover:bg-white/10 transition"><i className="fas fa-times text-xs"></i></button>
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface-800">
+                <i class="fas fa-shield-alt text-cyan-400 w-5 text-center"></i>
+                <div><p class="text-xs text-muted">Protected Attribute</p><p class="text-sm text-white font-medium">${prot}</p></div>
             </div>
-          </div>
-
-          {showKeyConfig&&(
-            <div className="px-4 py-3 border-b border-ds border-white/[0.05]" style={{background:"#0a1220"}}>
-              <p className="text-[10px] t-gray-400 text-gray-400 mb-2"><i className="fas fa-info-circle t-yellow-400 text-yellow-400 mr-1"></i>If the chatbot shows errors, enter your own free Groq API key from <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" className="ref-link">console.groq.com</a></p>
-              <div className="flex gap-2">
-                <input value={apiKey} onChange={e=>saveKey(e.target.value)} placeholder="gsk_..." className="chat-input flex-1 bg-gray-900 border border-gray-700 focus:border-emerald-500/50 rounded-lg px-3 py-1.5 t-white text-white text-xs focus:outline-none transition placeholder-gray-600"/>
-                <button onClick={()=>saveKey("")} className="text-[10px] t-gray-500 text-gray-500 hover:t-red-400 hover:text-red-400 transition px-2">Clear</button>
-              </div>
-              {apiError&&<p className="text-red-400 text-[10px] mt-1.5">{apiError}</p>}
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface-800">
+                <i class="fas fa-check-circle text-green-400 w-5 text-center"></i>
+                <div><p class="text-xs text-muted">Outcome Variable</p><p class="text-sm text-white font-medium">${out} (favorable: "${fav}")</p></div>
             </div>
-          )}
-
-          <div className="chat-msgs flex-1 overflow-y-auto p-4 space-y-3 text-sm" id="chat-messages" style={{background:"rgba(4,8,18,0.95)"}}>
-            {messages.map((m,i)=>m.role==="bot"?(
-              <div key={i} className="flex items-start gap-2"><div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5"><i className="fas fa-balance-scale t-emerald-400 text-emerald-400 text-[10px]"></i></div><div className="chat-bot px-3 py-2.5 rounded-xl rounded-tl-none t-gray-200 text-gray-200 text-sm leading-relaxed max-w-[88%]" style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)"}}dangerouslySetInnerHTML={{__html:m.html}}/></div>
-            ):(
-              <div key={i} className="flex justify-end"><div className="chat-user px-3 py-2.5 rounded-xl rounded-tr-none t-white text-white text-sm max-w-[88%] leading-relaxed" style={{background:"rgba(0,196,122,0.12)",border:"1px solid rgba(0,196,122,0.2)"}}>{m.text}</div></div>
-            ))}
-            {isLoading&&<div className="flex items-start gap-2"><div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5"><i className="fas fa-balance-scale t-emerald-400 text-emerald-400 text-[10px]"></i></div><div className="chat-bot px-3 py-2.5 rounded-xl rounded-tl-none" style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)"}}><span className="tdot"></span><span className="tdot"></span><span className="tdot"></span></div></div>}
-            <div ref={endRef}/>
-          </div>
-          <div className="chat-chips px-3 pt-2 pb-1 flex flex-wrap gap-1.5 shrink-0" style={{borderTop:"1px solid rgba(255,255,255,0.05)",background:"#08101e"}}>
-            {["What is Disparate Impact?","Ano ang counterfactual fairness?","Unsa ang IEEE 7003-2024?","How does the FairLens pipeline work?","Explain the COMPAS case"].map((c,i)=><button key={i} className="chip" onClick={()=>sendMessage(c)}>{c}</button>)}
-          </div>
-          <div className="chat-input-area flex gap-2 px-3 pb-3 shrink-0" style={{background:"#08101e"}}>
-            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage(input)}}} placeholder="Type in any language — English, Tagalog, or Bisaya…" className="chat-input flex-1 bg-gray-900 border border-gray-700 focus:border-emerald-500/50 rounded-xl px-3 py-2 t-white text-white text-sm focus:outline-none transition placeholder-gray-600"/>
-            <button onClick={()=>sendMessage(input)} className="w-9 h-9 bg-emerald-700 hover:bg-emerald-600 active:scale-95 rounded-xl t-white text-white flex items-center justify-center shrink-0 transition"><i className="fas fa-paper-plane text-xs"></i></button>
-          </div>
-        </div>
-      )}
-      <button onClick={()=>setIsOpen(o=>!o)} className={`w-14 h-14 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-full t-white text-white flex items-center justify-center transition-all ${isOpen?"":"chat-pulse"}`} title="FairLens AI Coach"><i className={`fas ${isOpen?"fa-times":"fa-balance-scale"} text-xl`}></i></button>
-    </div>
-  );
-}
-
-/* ── APP ── */
-function App(){
-  const[theme,setTheme]=useState(()=>{try{return localStorage.getItem("fairlens-theme")||"dark"}catch{return"dark"}});
-  useEffect(()=>{try{localStorage.setItem("fairlens-theme",theme)}catch{}document.documentElement.setAttribute("data-theme",theme)},[theme]);
-  const toggleTheme=()=>setTheme(p=>p==="dark"?"light":"dark");
-  const scrollToHome=e=>{e.preventDefault();window.scrollTo({top:0,behavior:"smooth"})};
-
-  return(
-    <>
-      <nav className="nav-bar sticky top-0 z-40 backdrop-blur-xl bg-black/35 border-b border-white/[0.07]">
-        <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0"><i className="fas fa-balance-scale t-emerald-400 text-emerald-400 text-sm"></i></div>
-            <div><span className="font-bold text-base t-white text-white tracking-tight">Fair<span className="t-emerald-400 text-emerald-400">Lens</span></span><p className="text-[10px] t-gray-500 text-gray-500 leading-none mt-0.5">Emmanuel Amista · CS 323 · NEMSU</p></div>
-          </div>
-          <div className="flex items-center gap-1 flex-wrap justify-end">
-            <a href="#home" onClick={scrollToHome} className="hidden sm:inline text-xs t-gray-500 text-gray-500 hover:t-emerald-400 hover:text-emerald-400 transition px-2 py-1"><i className="fas fa-home mr-0.5"></i>Home</a>
-            {[["#background","Background"],["#case-studies","Case Studies"],["#prototype","Prototype"],["#solutions","Solutions"],["#conclusion","Conclusion"]].map(([h,l])=><a key={h} href={h} className="hidden sm:inline text-xs t-gray-500 text-gray-500 hover:t-emerald-400 hover:text-emerald-400 transition px-2 py-1">{l}</a>)}
-            <button onClick={toggleTheme} className={`theme-toggle ${theme==="light"?"light-active":""}`} title={theme==="dark"?"Switch to Light Mode":"Switch to Dark Mode"} aria-label="Toggle theme">
-              <div className="toggle-knob">{theme==="dark"?<i className="fas fa-sun" style={{color:"#92400e",fontSize:"9px"}}></i>:<i className="fas fa-moon" style={{color:"#e0e7ff",fontSize:"9px"}}></i>}</div>
-            </button>
-            <span className="ieee-badge ml-1 bg-emerald-900/20 border border-emerald-600/30 t-emerald-300 text-emerald-300 text-[10px] font-semibold tracking-wider px-3 py-1.5 rounded-full"><i className="fas fa-shield-alt mr-1"></i>IEEE 7003-2024</span>
-          </div>
-        </div>
-      </nav>
-
-      <main id="home" className="max-w-6xl mx-auto px-5 pt-14 pb-10">
-        <div className="mb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest t-emerald-500 text-emerald-500 mb-3">CS 323 · Social Issues &amp; Professional Practice 1 · NEMSU</p>
-          <h1 className="text-4xl sm:text-5xl font-extrabold t-white text-white leading-tight mb-4">When <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">Code Inherits Prejudice,</span><br/>We Must Engineer Fairness</h1>
-          <p className="t-gray-400 text-gray-400 max-w-3xl text-base leading-relaxed">Machine learning now decides who gets a loan, who gets hired, who gets parole. These systems silently inherit the biases of their training data, scaling discrimination at the speed of software. <strong className="t-white text-white">FairLens</strong> is a live counterfactual fairness pipeline built to detect and repair algorithmic bias before deployment — operationalizing IEEE 7003-2024 in a working prototype backed by a real FastAPI + Pandas server.</p>
-          <div className="flex flex-wrap gap-3 mt-6">
-            <a href="#prototype" className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 t-white text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all"><i className="fas fa-flask text-xs"></i>Run the Prototype</a>
-            <a href="#solutions" className="btn-sec inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 t-gray-300 text-gray-300 text-sm font-medium px-5 py-2.5 rounded-xl transition-all"><i className="fas fa-file-alt text-xs"></i>View Recommendations</a>
-          </div>
-        </div>
-
-        <section id="background" className="mt-16">
-          <div className="flex items-center gap-3 mb-5"><div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div><h2 className="text-xl font-bold t-white text-white">Background of the Problem</h2></div>
-          <div className="card-section bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 md:p-8 t-gray-400 text-gray-400 text-sm leading-relaxed space-y-4">
-            <p>Machine learning has become embedded in consequential decisions across healthcare, finance, employment, and criminal justice. The problem is structural: models learn from historical data that reflects decades of social inequality. Bias is rarely the result of a programmer's explicit intent — it is inherited from flawed sampling, underrepresentation of minority groups, and historically prejudiced ground-truth labels (<R href={REF_URLS.mehrabi}>Mehrabi et al., 2021</R>; <R href={REF_URLS.barocas}>Barocas et al., 2023</R>).</p>
-            <p>From a professional standpoint, developers frequently optimize for performance benchmarks — accuracy, precision, recall — without measuring fairness across demographic groups. This gap between functional correctness and ethical responsibility is the central problem this study addresses (<R href={REF_URLS.ferrara}>Ferrara, 2024</R>). IEEE 7003-2024 was established to close that gap by making bias assessment a mandatory engineering step, not an afterthought.</p>
-            <p><strong className="t-white text-white">FairLens</strong> directly addresses this by implementing a counterfactual fairness pipeline: a system that detects disparate outcomes across protected groups and enforces that decisions remain consistent when protected attributes are hypothetically changed. The backend is a real FastAPI server computing live Disparate Impact scores and applying counterfactual mitigation via Pandas — transforming fairness from an abstract ethical principle into a measurable, verifiable API response (<R href={REF_URLS.barocas}>Barocas et al., 2023</R>).</p>
-          </div>
-        </section>
-
-        <section id="case-studies" className="mt-14">
-          <div className="flex items-center gap-3 mb-5"><div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div><h2 className="text-xl font-bold t-white text-white">Related Case Studies</h2></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="card-case bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 card-lift flex flex-col">
-              <div className="text-[10px] font-bold uppercase tracking-widest t-emerald-400 text-emerald-400 mb-3 flex items-center gap-1.5"><i className="fas fa-eye"></i>Representation Bias</div>
-              <div className="text-5xl font-black t-white text-white mb-4">67%</div>
-              <p className="t-gray-400 text-gray-400 text-sm leading-relaxed flex-1 mt-3"><R href={REF_URLS.buolamwini}>Buolamwini &amp; Gebru (2018)</R> found that 67% of images in widely-used facial-recognition benchmark datasets depict lighter-skinned subjects. Commercial systems showed error rates up to <strong className="t-white text-white">34.7%</strong> for darker-skinned women — versus <strong className="t-white text-white">0.8%</strong> for lighter-skinned men.</p>
-              <p className="text-[11px] t-gray-600 text-gray-600 mt-4 pt-3 border-t border-d border-white/[0.06]"><R href={REF_URLS.buolamwini}>Buolamwini & Gebru (2018)</R> · Gender Shades · MIT Media Lab</p>
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface-800">
+                <i class="fas fa-star text-amber-400 w-5 text-center"></i>
+                <div><p class="text-xs text-muted">Reference Group</p><p class="text-sm text-white font-medium">${ref}</p></div>
             </div>
-            <div className="card-case bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 card-lift flex flex-col">
-              <div className="text-[10px] font-bold uppercase tracking-widest t-purple-400 text-purple-400 mb-3 flex items-center gap-1.5"><i className="fas fa-briefcase"></i>Hiring Algorithm Bias</div>
-              <div className="text-3xl font-black t-white text-white mb-2 leading-tight">Amazon's<br/><span className="t-red-400 text-red-400">Scrapped AI</span></div>
-              <p className="t-gray-400 text-gray-400 text-sm leading-relaxed flex-1 mt-3">Amazon's AI recruiting tool was trained on 10 years of résumés — the vast majority submitted by men. The model learned to penalise résumés containing the word "women's" and was internally scrapped in 2018 after reviews confirmed systematic discrimination against female applicants (<R href={REF_URLS.reuters}>Reuters, 2018</R>; <R href={REF_URLS.ferrara}>Ferrara, 2024</R>).</p>
-              <p className="text-[11px] t-gray-600 text-gray-600 mt-4 pt-3 border-t border-d border-white/[0.06]"><R href={REF_URLS.reuters}>Reuters (2018)</R> · <R href={REF_URLS.ferrara}>Ferrara (2024)</R> · Sci, 6(1)</p>
+        `;
+    }
+
+    /* ================================================================
+       RUN BIAS ANALYSIS
+       ================================================================ */
+    function runAnalysis() {
+        const prot = document.getElementById('select-protected').value;
+        const out = document.getElementById('select-outcome').value;
+        const ref = document.getElementById('select-reference').value;
+        const fav = document.getElementById('select-favorable').value;
+        const ds = AppState.currentDataset;
+
+        if (!prot || !out || !ref || !fav || !ds) {
+            showToast('Missing configuration. Go back and fill all fields.', 'error');
+            return;
+        }
+
+        goToStep(4);
+        document.getElementById('analysis-loading').style.display = 'block';
+        document.getElementById('analysis-results').style.display = 'none';
+
+        // Simulate analysis time
+        setTimeout(() => {
+            try {
+                const results = performBiasAnalysis(ds, prot, out, ref, fav);
+                AppState.analysisResults = results;
+                renderAnalysisResults(results);
+                saveToReports(results);
+
+                document.getElementById('analysis-loading').style.display = 'none';
+                document.getElementById('analysis-results').style.display = 'block';
+                showToast('Bias detection analysis complete', 'success');
+            } catch (err) {
+                document.getElementById('analysis-loading').style.display = 'none';
+                showToast('Analysis error: ' + err.message, 'error');
+            }
+        }, 1500);
+    }
+
+    function performBiasAnalysis(dataset, protectedAttr, outcomeAttr, referenceGroup, favorableOutcome) {
+        // Group data
+        const groups = {};
+        dataset.forEach(row => {
+            const group = row[protectedAttr];
+            if (!group) return;
+            if (!groups[group]) groups[group] = { total: 0, favorable: 0 };
+            groups[group].total++;
+            if (String(row[outcomeAttr]) === String(favorableOutcome)) {
+                groups[group].favorable++;
+            }
+        });
+
+        const groupNames = Object.keys(groups);
+        const refData = groups[referenceGroup];
+        const refRate = refData ? refData.favorable / refData.total : 0;
+
+        const metrics = groupNames.map(name => {
+            const g = groups[name];
+            const rate = g.favorable / g.total;
+            const statParityDiff = rate - refRate;
+            const dispImpact = refRate > 0 ? rate / refRate : 0;
+            let assessment = 'Fair';
+            if (Math.abs(statParityDiff) > 0.15 || dispImpact < 0.7) assessment = 'Severe Bias';
+            else if (Math.abs(statParityDiff) > 0.07 || dispImpact < 0.8) assessment = 'Moderate Bias';
+            else if (Math.abs(statParityDiff) > 0.03 || dispImpact < 0.9) assessment = 'Mild Bias';
+
+            return {
+                group: name, count: g.total, favorable: g.favorable,
+                rate: rate, statParityDiff, dispImpact, assessment,
+                isReference: name === referenceGroup
+            };
+        });
+
+        // Calculate overall bias score (0-100)
+        const maxSPD = Math.max(...metrics.map(m => Math.abs(m.statParityDiff)));
+        const minDI = Math.min(...metrics.filter(m => !m.isReference).map(m => m.dispImpact));
+        const biasScore = Math.min(100, Math.round(
+            (Math.min(maxSPD * 200, 50) + Math.min((1 - Math.max(minDI, 0)) * 80, 50))
+        ));
+
+        // Generate recommendations
+        const recommendations = [];
+        const severeGroups = metrics.filter(m => m.assessment === 'Severe Bias');
+        const moderateGroups = metrics.filter(m => m.assessment === 'Moderate Bias');
+
+        if (severeGroups.length > 0) {
+            recommendations.push({
+                type: 'danger', icon: 'fas fa-exclamation-circle',
+                title: 'Critical Bias Detected',
+                text: `Severe bias found against: ${severeGroups.map(g => g.group).join(', ')}. Disparate impact ratios fall below the 80% rule threshold. Immediate corrective action is recommended.`
+            });
+        }
+        if (moderateGroups.length > 0) {
+            recommendations.push({
+                type: 'warn', icon: 'fas fa-exclamation-triangle',
+                title: 'Moderate Bias Present',
+                text: `Moderate bias detected for: ${moderateGroups.map(g => g.group).join(', ')}. Consider reviewing data collection processes and model training procedures.`
+            });
+        }
+        recommendations.push({
+            type: 'info', icon: 'fas fa-lightbulb',
+            title: 'Resampling Strategies',
+            text: 'Consider oversampling underrepresented groups or applying stratified sampling to ensure balanced representation across all demographic groups.'
+        });
+        recommendations.push({
+            type: 'info', icon: 'fas fa-balance-scale',
+            title: 'Fairness Constraints',
+            text: 'Apply fairness constraints during model training such as equalized odds post-processing or adversarial debiasing to reduce outcome disparities.'
+        });
+        if (biasScore <= 20) {
+            recommendations.push({
+                type: 'success', icon: 'fas fa-check-circle',
+                title: 'Low Bias Detected',
+                text: 'The dataset shows relatively fair outcomes across groups. Continue monitoring for drift and re-evaluate periodically.'
+            });
+        }
+
+        return {
+            protectedAttr, outcomeAttr, referenceGroup, favorableOutcome,
+            metrics, biasScore, groups, groupNames, recommendations,
+            datasetSize: dataset.length, timestamp: new Date().toISOString()
+        };
+    }
+
+    /* ================================================================
+       RENDER ANALYSIS RESULTS
+       ================================================================ */
+    function renderAnalysisResults(results) {
+        // Bias score
+        const scoreEl = document.getElementById('bias-score');
+        const barEl = document.getElementById('bias-score-bar');
+        const badgeEl = document.getElementById('bias-severity-badge');
+        scoreEl.textContent = results.biasScore;
+
+        let barColor, scoreColor, badgeClass, badgeText;
+        if (results.biasScore <= 25) {
+            barColor = '#10b981'; scoreColor = '#10b981'; badgeClass = 'badge badge-green'; badgeText = 'Low Bias';
+        } else if (results.biasScore <= 55) {
+            barColor = '#f59e0b'; scoreColor = '#f59e0b'; badgeClass = 'badge badge-yellow'; badgeText = 'Moderate Bias';
+        } else {
+            barColor = '#ef4444'; scoreColor = '#ef4444'; badgeClass = 'badge badge-red'; badgeText = 'Severe Bias';
+        }
+        scoreEl.style.color = scoreColor;
+        barEl.style.width = results.biasScore + '%';
+        barEl.style.background = `linear-gradient(90deg, #10b981, ${barColor})`;
+        badgeEl.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
+
+        document.getElementById('results-summary-text').textContent =
+            `Analyzed ${results.datasetSize} records across ${results.groupNames.length} groups for "${results.protectedAttr}" bias`;
+
+        // Outcome rate chart
+        if (AppState.charts.outcome) AppState.charts.outcome.destroy();
+        AppState.charts.outcome = new Chart(document.getElementById('results-chart-outcome'), {
+            type: 'bar',
+            data: {
+                labels: results.metrics.map(m => m.group),
+                datasets: [{
+                    label: 'Favorable Outcome Rate',
+                    data: results.metrics.map(m => (m.rate * 100).toFixed(1)),
+                    backgroundColor: results.metrics.map(m =>
+                        m.isReference ? 'rgba(16,185,129,0.7)' :
+                        m.assessment === 'Severe Bias' ? 'rgba(239,68,68,0.7)' :
+                        m.assessment === 'Moderate Bias' ? 'rgba(245,158,11,0.7)' : 'rgba(6,182,212,0.7)'
+                    ),
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ctx.parsed.y + '%' } }
+                },
+                scales: {
+                    x: { ticks: { color: '#8899aa' }, grid: { display: false } },
+                    y: { ticks: { color: '#8899aa', callback: v => v + '%' }, grid: { color: 'rgba(42,58,78,0.3)' },
+                         max: 100 }
+                }
+            }
+        });
+
+        // Representation chart
+        if (AppState.charts.representation) AppState.charts.representation.destroy();
+        AppState.charts.representation = new Chart(document.getElementById('results-chart-representation'), {
+            type: 'doughnut',
+            data: {
+                labels: results.metrics.map(m => m.group),
+                datasets: [{
+                    data: results.metrics.map(m => m.count),
+                    backgroundColor: results.metrics.map((_, i) => `hsla(${160 + i * 40}, 60%, 55%, 0.8)`),
+                    borderColor: '#1a2332', borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#8899aa', padding: 12, font: { size: 12 } } }
+                }
+            }
+        });
+
+        // Metrics table
+        const tbody = document.querySelector('#metrics-table tbody');
+        tbody.innerHTML = results.metrics.map(m => {
+            const assessmentBadge =
+                m.assessment === 'Severe Bias' ? '<span class="badge badge-red">Severe</span>' :
+                m.assessment === 'Moderate Bias' ? '<span class="badge badge-yellow">Moderate</span>' :
+                m.assessment === 'Mild Bias' ? '<span class="badge badge-yellow">Mild</span>' :
+                '<span class="badge badge-green">Fair</span>';
+            return `<tr>
+                <td class="font-medium text-white">${escHtml(m.group)}${m.isReference ? ' <span class="text-xs text-accent">(ref)</span>' : ''}</td>
+                <td>${m.count}</td>
+                <td>${(m.rate * 100).toFixed(1)}%</td>
+                <td style="color:${Math.abs(m.statParityDiff) > 0.1 ? '#f87171' : Math.abs(m.statParityDiff) > 0.05 ? '#fbbf24' : '#34d399'}">${m.statParityDiff >= 0 ? '+' : ''}${(m.statParityDiff * 100).toFixed(1)}%</td>
+                <td style="color:${m.dispImpact < 0.8 ? '#f87171' : m.dispImpact < 0.9 ? '#fbbf24' : '#34d399'}">${m.dispImpact.toFixed(3)}</td>
+                <td>${assessmentBadge}</td>
+            </tr>`;
+        }).join('');
+
+        // Recommendations
+        const recList = document.getElementById('recommendations-list');
+        const typeColors = { danger: 'red', warn: 'amber', info: 'cyan', success: 'green' };
+        recList.innerHTML = results.recommendations.map(r => {
+            const c = typeColors[r.type] || 'cyan';
+            return `<div class="flex items-start gap-3 p-4 rounded-lg bg-${c}-500/5 border border-${c}-500/20">
+                <i class="${r.icon} text-${c}-400 mt-0.5"></i>
+                <div>
+                    <p class="text-sm font-semibold text-white">${r.title}</p>
+                    <p class="text-xs text-muted mt-1 leading-relaxed">${r.text}</p>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Update dashboard stats
+        document.getElementById('stat-bias').textContent = results.metrics.filter(m => m.assessment.includes('Bias')).length;
+        document.getElementById('stat-analyses').textContent = AppState.analysisHistory.length;
+    }
+
+    /* ================================================================
+       SAVE TO REPORTS
+       ================================================================ */
+    function saveToReports(results) {
+        AppState.analysisHistory.push(results);
+
+        const container = document.getElementById('reports-list');
+        // Clear "no reports" placeholder if present
+        if (AppState.analysisHistory.length === 1) container.innerHTML = '';
+
+        const reportCard = document.createElement('div');
+        reportCard.className = 'card cursor-pointer card-hover';
+        reportCard.onclick = () => showReportDetail(results);
+
+        const date = new Date(results.timestamp);
+        const timeStr = date.toLocaleString();
+        const biasClass = results.biasScore <= 25 ? 'badge-green' : results.biasScore <= 55 ? 'badge-yellow' : 'badge-red';
+
+        reportCard.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-accent/10 flex items-center justify-center">
+                        <i class="fas fa-microscope text-accent text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-white">Bias Analysis: ${escHtml(results.protectedAttr)} → ${escHtml(results.outcomeAttr)}</p>
+                        <p class="text-xs text-muted">${timeStr} · ${results.datasetSize} records</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-lg font-bold font-display" style="color:${results.biasScore <= 25 ? '#10b981' : results.biasScore <= 55 ? '#f59e0b' : '#ef4444'}">${results.biasScore}</span>
+                    <span class="badge ${biasClass}">${results.biasScore <= 25 ? 'Low' : results.biasScore <= 55 ? 'Moderate' : 'Severe'}</span>
+                </div>
             </div>
-            <div className="card-case bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 card-lift flex flex-col">
-              <div className="text-[10px] font-bold uppercase tracking-widest t-red-400 text-red-400 mb-3 flex items-center gap-1.5"><i className="fas fa-gavel"></i>Criminal Justice AI</div>
-              <div className="text-5xl font-black t-white text-white mb-4">2×</div>
-              <p className="t-gray-400 text-gray-400 text-sm leading-relaxed flex-1 mt-3"><R href={REF_URLS.propublica}>ProPublica's 2016</R> investigation of COMPAS found it flagged Black defendants as future criminals at nearly twice the rate of white defendants (45% vs. 24% false-positive rate). The algorithm encoded race implicitly through proxies like zip code and prior arrest history (<R href={REF_URLS.mehrabi}>Mehrabi et al., 2021</R>).</p>
-              <p className="text-[11px] t-gray-600 text-gray-600 mt-4 pt-3 border-t border-d border-white/[0.06]"><R href={REF_URLS.propublica}>ProPublica (2016)</R> · <R href={REF_URLS.mehrabi}>Mehrabi et al. (2021)</R> · ACM Computing Surveys</p>
+            <div class="flex gap-2 flex-wrap">
+                ${results.metrics.map(m => `<span class="text-xs px-2 py-1 rounded bg-surface-700 text-muted">${escHtml(m.group)}: ${(m.rate * 100).toFixed(0)}%</span>`).join('')}
             </div>
-          </div>
-        </section>
+        `;
+        container.prepend(reportCard);
+    }
 
-        <PrototypeSection/>
+    function showReportDetail(results) {
+        navigateTo('pipeline');
+        setTimeout(() => {
+            AppState.analysisResults = results;
+            goToStep(4);
+            document.getElementById('analysis-loading').style.display = 'none';
+            document.getElementById('analysis-results').style.display = 'block';
+            renderAnalysisResults(results);
+        }, 100);
+    }
 
-        <section id="solutions" className="mt-14">
-          <div className="flex items-center gap-3 mb-5"><div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div><h2 className="text-xl font-bold t-white text-white">Proposed Solutions &amp; Recommendations</h2></div>
-          <div className="space-y-3">
-            <div className="policy-item p-5 rounded-r-xl"><h3 className="t-white text-white font-semibold flex items-center gap-2 mb-2 text-sm"><i className="fas fa-file-alt t-emerald-400 text-emerald-400 text-xs"></i>1. Mandatory Model Cards</h3><p className="t-gray-400 text-gray-400 text-sm leading-relaxed">Every AI system deployed in a consequential decision context must be accompanied by a model card documenting: training data demographics, known performance disparities across protected groups, intended and prohibited use cases, and Disparate Impact scores measured before deployment. This requirement aligns with Google's Model Cards framework and is supported by <R href={REF_URLS.ferrara}>Ferrara (2024)</R>. Feasibility: low cost, high accountability impact. Limitation: self-reported unless independently audited.</p></div>
-            <div className="policy-item p-5 rounded-r-xl"><h3 className="t-white text-white font-semibold flex items-center gap-2 mb-2 text-sm"><i className="fas fa-filter t-emerald-400 text-emerald-400 text-xs"></i>2. Pre-processing Sanitization (IEEE 7003-2024 §5.2)</h3><p className="t-gray-400 text-gray-400 text-sm leading-relaxed">Before model training begins, all datasets must pass through a bias detection pipeline — specifically AIF360's reweighing algorithm — to ensure balanced representation across protected groups. Teams must document every sanitization step and the resulting DI values. This implements the pre-processing requirement of IEEE 7003-2024 §5.2 (<R href={REF_URLS.pessach}>Pessach &amp; Shmueli, 2022</R>). Feasibility: open-source tooling is available. Limitation: reweighing may reduce overall accuracy marginally.</p></div>
-            <div className="policy-item p-5 rounded-r-xl"><h3 className="t-white text-white font-semibold flex items-center gap-2 mb-2 text-sm"><i className="fas fa-exchange-alt t-emerald-400 text-emerald-400 text-xs"></i>3. Counterfactual Fairness Audit (What-If Testing)</h3><p className="t-gray-400 text-gray-400 text-sm leading-relaxed">Every model must pass a counterfactual fairness test before release: for each prediction, the system asks 'would this decision change if the applicant's protected attribute were different?' If the answer is yes for a significant proportion of cases, the model must be retrained. This enforces the causal definition of fairness in <R href={REF_URLS.barocas}>Barocas et al. (2023)</R> and is the core mechanism demonstrated in the FairLens prototype above. Feasibility: computationally inexpensive on structured data.</p></div>
-            <div className="policy-item p-5 rounded-r-xl"><h3 className="t-white text-white font-semibold flex items-center gap-2 mb-2 text-sm"><i className="fas fa-gavel t-emerald-400 text-emerald-400 text-xs"></i>4. ACM Code of Ethics Alignment</h3><p className="t-gray-400 text-gray-400 text-sm leading-relaxed">All recommendations are grounded in the ACM Code of Ethics: Principle 1.2 (Avoid Harm) — by mandating pre-deployment bias testing; Principle 1.4 (Be Fair and Not Discriminate) — by enforcing equal treatment across demographic groups; and Principle 2.5 (Give Comprehensive Evaluations) — by requiring comprehensive DI reporting. Developers who deploy AI in high-stakes domains bear professional responsibility for its discriminatory outcomes.</p></div>
-          </div>
-        </section>
+    /* ================================================================
+       EXPORT RESULTS
+       ================================================================ */
+    function exportResults() {
+        if (!AppState.analysisResults) { showToast('No results to export', 'error'); return; }
+        const r = AppState.analysisResults;
+        const text = `FairLens Bias Detection Report\n${'='.repeat(40)}\n\nDate: ${new Date(r.timestamp).toLocaleString()}\nDataset Size: ${r.datasetSize} records\nProtected Attribute: ${r.protectedAttr}\nOutcome Variable: ${r.outcomeAttr}\nReference Group: ${r.referenceGroup}\nFavorable Outcome: ${r.favorableOutcome}\nOverall Bias Score: ${r.biasScore}/100\n\nFairness Metrics:\n${'-'.repeat(40)}\n` +
+            r.metrics.map(m => `${m.group}${m.isReference ? ' (ref)' : ''}: Rate=${(m.rate*100).toFixed(1)}%, SPD=${(m.statParityDiff*100).toFixed(1)}%, DI=${m.dispImpact.toFixed(3)}, Assessment=${m.assessment}`).join('\n') +
+            `\n\nRecommendations:\n${'-'.repeat(40)}\n` +
+            r.recommendations.map(rec => `- ${rec.title}: ${rec.text}`).join('\n');
 
-        <section id="conclusion" className="mt-14">
-          <div className="flex items-center gap-3 mb-5"><div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div><h2 className="text-xl font-bold t-white text-white">Conclusion</h2></div>
-          <div className="card-section bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 md:p-8 t-gray-400 text-gray-400 text-sm leading-relaxed space-y-4">
-            <p>Algorithmic bias is not an edge case, a bug, or an inevitability. It is a systems failure — and systems failures can be engineered out of existence. The FairLens pipeline demonstrates that bias detection and mitigation are technically feasible, computationally inexpensive, and completable before deployment via a real FastAPI backend. There is no legitimate engineering reason to ship a discriminatory model to production.</p>
-            <p>The three case studies — Amazon's hiring AI, COMPAS recidivism scoring, and commercial facial recognition — share a common root cause: teams optimized for accuracy without measuring fairness. IEEE 7003-2024 closes this gap by mandating Disparate Impact measurement and mitigation before any consequential AI system is deployed.</p>
-            <p>The tools are available. The standards are published. The professional obligation is clear under ACM Principles 1.2, 1.4, and 2.5. The only remaining question is whether engineers and organizations will choose to use them — or repeat the same preventable failures at industrial scale.</p>
-            <div className="mt-4 pt-4 border-t border-d border-white/[0.06] grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] t-gray-600 text-gray-600">
-              <div><R href={REF_URLS.barocas}>Barocas, Hardt &amp; Narayanan (2023)</R> · <em>Fairness and ML</em> · MIT Press</div>
-              <div><R href={REF_URLS.mehrabi}>Mehrabi et al. (2021)</R> · <em>ACM Computing Surveys</em> 54(6)</div>
-              <div><R href={REF_URLS.ferrara}>Ferrara (2024)</R> · <em>Sci</em> 6(1) · <R href={REF_URLS.buolamwini}>Buolamwini &amp; Gebru (2018)</R> · PMLR 81</div>
-            </div>
-          </div>
-        </section>
-      </main>
-      <Chatbot/>
-    </>
-  );
-}
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `fairlens-report-${Date.now()}.txt`;
+        a.click(); URL.revokeObjectURL(url);
+        showToast('Report exported successfully', 'success');
+    }
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App/>);
-</script>
+    /* ================================================================
+       CHATBOT - FULLY LOCAL, NO API CALLS
+       ================================================================ */
+    const chatKnowledgeBase = [
+        {
+            patterns: ['hello','hi','hey','greetings','good morning','good afternoon','good evening'],
+            response: `Hello! I'm FairLens AI, your bias detection assistant. I can help you with:\n\n- Understanding algorithmic bias and fairness concepts\n- Explaining fairness metrics like Statistical Parity and Disparate Impact\n- Interpreting your analysis results\n- Suggesting bias mitigation strategies\n\nWhat would you like to explore?`
+        },
+        {
+            patterns: ['what is bias','algorithmic bias','what is algorithmic bias','ai bias','define bias'],
+            response: `**Algorithmic Bias** refers to systematic and unfair discrimination in automated decision-making systems. It occurs when an algorithm produces prejudiced results due to flawed assumptions in the data, model design, or training process.\n\n**Common types:**\n- **Historical Bias**: Training data reflects existing societal inequities\n- **Representation Bias**: Dataset doesn't represent the target population\n- **Measurement Bias**: Features or labels are imperfect proxies\n- **Aggregation Bias**: One model used for groups with different conditional distributions\n\n**Example**: A hiring algorithm trained on past decisions may learn and amplify existing gender or racial biases in recruitment.`
+        },
+        {
+            patterns: ['statistical parity','statistical parity difference','what is spd','demographic parity'],
+            response: `**Statistical Parity Difference (SPD)** measures the difference in favorable outcome rates between a protected group and a reference group.\n\n**Formula:** SPD = P(Y=1|A=unprivileged) - P(Y=1|A=privileged)\n\n**Interpretation:**\n- SPD = 0: Perfect fairness (equal outcomes)\n- SPD < 0: Unprivileged group disadvantaged\n- SPD > 0: Privileged group disadvantaged\n- |SPD| > 10%: Generally considered significant bias\n\n**The 80% Rule** (from US employment law): The selection rate for any group should be at least 80% of the rate for the group with the highest rate. This translates to a Disparate Impact ratio of at least 0.8.`
+        },
+        {
+            patterns: ['disparate impact','what is disparate impact','di ratio','four-fifths rule','80% rule'],
+            response: `**Disparate Impact Ratio** compares the rate of favorable outcomes for a protected group against a reference group.\n\n**Formula:** DI = P(Y=1|A=unprivileged) / P(Y=1|A=privileged)\n\n**Interpretation:**\n- DI = 1.0: Perfect parity\n- DI < 1.0: Unprivileged group receives fewer favorable outcomes\n- DI < 0.8: **Fails the 80% rule** — considered evidence of disparate impact under US employment law (EEOC guidelines)\n- DI > 1.0: Unprivileged group receives more favorable outcomes (reverse bias)\n\nThe 80% rule (or 4/5 rule) is a legal benchmark, not a strict threshold — context matters.`
+        },
+        {
+            patterns: ['mitigate bias','how to reduce bias','bias mitigation','debias','debiasing','fix bias','reduce bias'],
+            response: `**Bias Mitigation Strategies** can be applied at three stages:\n\n**1. Pre-processing (Data Level):**\n- Resampling: Oversample underrepresented groups or undersample overrepresented ones\n- Reweighting: Assign different weights to samples to balance group influence\n- Feature modification: Remove or transform biased features\n- Synthetic data generation for underrepresented groups\n\n**2. In-processing (Model Level):**\n- Fairness constraints: Add fairness objectives to the optimization function\n- Adversarial debiasing: Train adversary to remove protected attribute information\n- Regularization: Add fairness penalty terms\n\n**3. Post-processing (Output Level):**\n- Threshold adjustment: Use different decision thresholds per group\n- Calibration: Equalize prediction scores across groups\n- Reject option classification: Give borderline cases special treatment\n\nThe best approach depends on your specific use case and fairness requirements.`
+        },
+        {
+            patterns: ['fairness metrics','types of fairness','fairness definitions','fairness measures'],
+            response: `**Key Fairness Metrics:**\n\n1. **Statistical/Demographic Parity**: Equal outcome rates across groups\n2. **Equal Opportunity**: Equal true positive rates across groups\n3. **Equalized Odds**: Equal TPR and FPR across groups\n4. **Predictive Parity**: Equal positive predictive values across groups\n5. **Calibration**: Predicted probabilities mean the same thing across groups\n6. **Individual Fairness**: Similar individuals receive similar predictions\n\n**Important**: Many fairness metrics are mutually exclusive — you cannot satisfy all simultaneously (proven by impossibility theorems). The choice depends on societal context and legal requirements.`
+        },
+        {
+            patterns: ['analyze my dataset','analyze current dataset','current dataset','dataset analysis','what about my data'],
+            response: function() {
+                const ds = AppState.currentDataset || builtInData;
+                const r = AppState.analysisResults;
+                if (!r) {
+                    return `I can see you have a dataset loaded with ${ds.length} records. However, no bias analysis has been run yet.\n\nTo analyze your dataset:\n1. Go to the **Detection Pipeline** page\n2. Select your data source (built-in or upload your own)\n3. Configure the protected attribute and outcome variable\n4. Run the analysis\n\nOnce complete, I can help you interpret the results!`;
+                }
+                return `**Current Dataset Analysis:**\n\n- **Dataset Size:** ${r.datasetSize} records\n- **Protected Attribute:** ${r.protectedAttr}\n- **Outcome:** ${r.outcomeAttr} (favorable: "${r.favorableOutcome}")\n- **Overall Bias Score:** ${r.biasScore}/100\n\n**Group Breakdown:**\n` +
+                    r.metrics.map(m => `- ${m.group}${m.isReference ? ' (reference)' : ''}: ${(m.rate*100).toFixed(1)}% favorable rate, DI=${m.dispImpact.toFixed(2)} (${m.assessment})`).join('\n') +
+                    `\n\n${r.biasScore > 40 ? 'Significant bias was detected. Would you like to know about mitigation strategies?' : 'The dataset shows relatively fair outcomes. Continue monitoring for drift.'}`;
+            }
+        },
+        {
+            patterns: ['upload','how to upload','upload data','custom data','my own data','my data','own dataset'],
+            response: `You can upload your own dataset directly in the **Detection Pipeline**:\n\n1. Navigate to **Detection Pipeline** from the sidebar\n2. Click **Upload Your Data** in Step 1\n3. Drag and drop your file or click to browse\n4. Supported formats: **CSV**, **TSV**, **JSON** (max 10MB)\n\n**Requirements:**\n- File must have a header row (for CSV/TSV)\n- Include at least one categorical column (for protected attribute)\n- Include at least one outcome column with discrete values\n- Ensure the data is clean — handle missing values before uploading\n\nOnce uploaded, the pipeline will auto-detect column types and let you configure the analysis.`
+        },
+        {
+            patterns: ['representation bias','representation','imbalanced data','imbalanced','class imbalance'],
+            response: `**Representation Bias** occurs when the training data doesn't accurately represent the target population.\n\n**Examples:**\n- A facial recognition system trained primarily on light-skinned faces\n- A loan approval model trained on data from urban areas only\n- A healthcare model trained on one demographic\n\n**Detection:**\n- Compare group proportions in your dataset vs. the target population\n- Use the Group Representation chart in the pipeline results\n- Check for groups with less than 10% representation\n\n**Mitigation:**\n- Collect more data for underrepresented groups\n- Use stratified sampling\n- Apply reweighting during model training\n- Generate synthetic samples for minority groups`
+        },
+        {
+            patterns: ['help','what can you do','features','capabilities','how to use'],
+            response: `I'm FairLens AI — here's what I can help with:\n\n**Bias Concepts:**\n- What is algorithmic bias?\n- Types of bias in AI systems\n- Real-world examples and impacts\n\n**Fairness Metrics:**\n- Statistical Parity Difference\n- Disparate Impact Ratio\n- Equal Opportunity and Equalized Odds\n- The 80% rule explained\n\n**Your Dataset:**\n- Guide you through uploading custom data\n- Analyze your current dataset\n- Interpret analysis results\n\n**Mitigation:**\n- Pre-processing strategies\n- In-processing techniques\n- Post-processing adjustments\n\nJust type your question and I'll do my best to help!`
+        },
+        {
+            patterns: ['thank','thanks','thank you','appreciate'],
+            response: `You're welcome! I'm here to help make AI systems fairer and more equitable. If you have more questions about bias detection or need help interpreting your results, don't hesitate to ask.`
+        },
+        {
+            patterns: ['equal opportunity','equalized odds','true positive rate','tpr'],
+            response: `**Equal Opportunity** requires that the True Positive Rate (TPR) is equal across groups.\n\n- TPR = TP / (TP + FN) — proportion of actual positives correctly identified\n- Equal Opportunity: TPR(privileged) = TPR(unprivileged)\n\n**Equalized Odds** is stricter — it requires both TPR and FPR to be equal across groups:\n- TPR must be equal AND\n- FPR = FP / (FP + TN) must also be equal\n\n**When to use which:**\n- Statistical Parity: When you want equal outcomes regardless of group\n- Equal Opportunity: When you want equal chance for qualified individuals\n- Equalized Odds: When you want both equal TPR and equal FPR\n\nThese metrics can conflict with each other and with overall accuracy.`
+        }
+    ];
+
+    function processChatMessage(message) {
+        const lower = message.toLowerCase().trim();
+
+        // Try to find a matching pattern
+        for (const entry of chatKnowledgeBase) {
+            for (const pattern of entry.patterns) {
+                if (lower.includes(pattern)) {
+                    return typeof entry.response === 'function' ? entry.response() : entry.response;
+                }
+            }
+        }
+
+        // Fallback: try partial keyword matching
+        const keywords = {
+            'bias': 'what is bias',
+            'fair': 'fairness metrics',
+            'parity': 'statistical parity',
+            'impact': 'disparate impact',
+            'mitigat': 'mitigate bias',
+            'reduc': 'mitigate bias',
+            'fix': 'mitigate bias',
+            'upload': 'upload',
+            'dataset': 'analyze current dataset',
+            'data': 'analyze current dataset',
+            'help': 'help',
+            'metric': 'fairness metrics',
+            'opportunity': 'equal opportunity',
+            'equal': 'equal opportunity',
+            'representation': 'representation bias',
+            'imbalan': 'representation bias'
+        };
+
+        for (const [kw, redirect] of Object.entries(keywords)) {
+            if (lower.includes(kw)) {
+                for (const entry of chatKnowledgeBase) {
+                    if (entry.patterns.includes(redirect)) {
+                        return typeof entry.response === 'function' ? entry.response() : entry.response;
+                    }
+                }
+            }
+        }
+
+        // Default fallback
+        return `That's an interesting question! While I don't have a specific answer for "${message}", I can help with:\n\n- Bias and fairness concepts\n- Fairness metrics explanation\n- Dataset analysis guidance\n- Bias mitigation strategies\n\nTry asking about one of these topics, or type "help" to see all my capabilities.`;
+    }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        if (!message) return;
+
+        const chatContainer = document.getElementById('chat-messages');
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Add user message
+        chatContainer.innerHTML += `
+            <div class="chat-msg flex gap-3 justify-end">
+                <div class="max-w-[85%]">
+                    <div class="bg-accent/20 rounded-xl rounded-tr-sm p-4 text-sm text-white leading-relaxed">${escHtml(message)}</div>
+                    <p class="text-xs text-muted mt-1 text-right">${time}</p>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-surface-700 flex items-center justify-center flex-shrink-0 mt-1">
+                    <i class="fas fa-user text-muted text-xs"></i>
+                </div>
+            </div>`;
+
+        input.value = '';
+
+        // Show typing indicator
+        const typingId = 'typing-' + Date.now();
+        chatContainer.innerHTML += `
+            <div class="chat-msg flex gap-3" id="${typingId}">
+                <div class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-1">
+                    <i class="fas fa-robot text-accent text-xs"></i>
+                </div>
+                <div class="flex-1 max-w-[85%]">
+                    <div class="bg-surface-800 rounded-xl rounded-tl-sm p-4 flex gap-1.5">
+                        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                    </div>
+                </div>
+            </div>`;
+
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // Generate response after short delay
+        setTimeout(() => {
+            try {
+                const response = processChatMessage(message);
+
+                // Remove typing indicator
+                const typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+
+                // Format response with simple markdown
+                const formatted = formatChatResponse(response);
+
+                chatContainer.innerHTML += `
+                    <div class="chat-msg flex gap-3">
+                        <div class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-1">
+                            <i class="fas fa-robot text-accent text-xs"></i>
+                        </div>
+                        <div class="flex-1 max-w-[85%]">
+                            <div class="bg-surface-800 rounded-xl rounded-tl-sm p-4 text-sm leading-relaxed">${formatted}</div>
+                            <p class="text-xs text-muted mt-1">${time}</p>
+                        </div>
+                    </div>`;
+
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } catch (err) {
+                // Remove typing indicator on error
+                const typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+
+                chatContainer.innerHTML += `
+                    <div class="chat-msg flex gap-3">
+                        <div class="w-8 h-8 rounded-full bg-danger/20 flex items-center justify-center flex-shrink-0 mt-1">
+                            <i class="fas fa-exclamation text-danger text-xs"></i>
+                        </div>
+                        <div class="flex-1 max-w-[85%]">
+                            <div class="bg-surface-800 rounded-xl rounded-tl-sm p-4 text-sm text-danger">Sorry, I encountered an error processing your message. Please try again.</div>
+                        </div>
+                    </div>`;
+
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }, 600 + Math.random() * 800);
+    }
+
+    function formatChatResponse(text) {
+        // Simple markdown-like formatting
+        return text
+            .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+            .replace(/\n\n/g, '</p><p class="mt-3">')
+            .replace(/\n- /g, '</p><div class="flex gap-2 mt-1"><span class="text-accent flex-shrink-0">•</span><span>')
+            .replace(/\n(\d+)\. /g, '</span></div><div class="flex gap-2 mt-1"><span class="text-accent flex-shrink-0">$1.</span><span>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function sendSuggested(btn) {
+        const text = btn.textContent.trim();
+        document.getElementById('chat-input').value = text;
+        sendChatMessage();
+    }
+
+    /* ================================================================
+       TOAST NOTIFICATIONS
+       ================================================================ */
+    function showToast(message, type) {
+        type = type || 'info';
+        const icons = { success: 'fas fa-check-circle', error: 'fas fa-times-circle', info: 'fas fa-info-circle' };
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<i class="${icons[type] || icons.info}"></i><span>${escHtml(message)}</span>`;
+        document.body.appendChild(toast);
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3200);
+    }
+
+    /* ================================================================
+       DASHBOARD INITIALIZATION
+       ================================================================ */
+    function initDashboard() {
+        // Set dataset reference
+        AppState.currentDataset = builtInData;
+        AppState.currentHeaders = builtInHeaders;
+
+        // Render preview table
+        renderTable('dashboard-table', builtInHeaders.slice(0, 7), builtInData.slice(0, 10));
+
+        // Dashboard chart — hiring by gender
+        const ctx = document.getElementById('dashboard-chart');
+        if (ctx) {
+            const genderHire = {};
+            builtInData.forEach(r => {
+                if (!genderHire[r.gender]) genderHire[r.gender] = { total: 0, hired: 0 };
+                genderHire[r.gender].total++;
+                if (r.hired === 'Yes') genderHire[r.gender].hired++;
+            });
+            const labels = Object.keys(genderHire);
+            AppState.charts.dashboard = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Hired', data: labels.map(g => genderHire[g].hired), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 4 },
+                        { label: 'Not Hired', data: labels.map(g => genderHire[g].total - genderHire[g].hired), backgroundColor: 'rgba(239,68,68,0.5)', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#8899aa', font: { size: 11 } } } },
+                    scales: {
+                        x: { stacked: true, ticks: { color: '#8899aa' }, grid: { display: false } },
+                        y: { stacked: true, ticks: { color: '#8899aa' }, grid: { color: 'rgba(42,58,78,0.3)' } }
+                    }
+                }
+            });
+        }
+    }
+
+    /* ================================================================
+       INITIALIZATION
+       ================================================================ */
+    document.addEventListener('DOMContentLoaded', function() {
+        initDashboard();
+
+        // Set initial dataset stats
+        document.getElementById('stat-records').textContent = builtInData.length;
+        document.getElementById('stat-columns').textContent = builtInHeaders.length;
+    });
+    </script>
 </body>
 </html>
