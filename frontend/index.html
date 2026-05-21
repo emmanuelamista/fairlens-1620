@@ -33,6 +33,14 @@
     .theme-toggle .toggle-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fbbf24;transition:transform .25s cubic-bezier(0.34,1.4,0.64,1),background .25s;display:flex;align-items:center;justify-content:center;font-size:10px}
     .theme-toggle.light-active .toggle-knob{transform:translateX(20px);background:#6366f1}
     .theme-toggle.light-active{background:rgba(99,102,241,0.2);border-color:rgba(99,102,241,0.4)}
+    .upload-zone{border:2px dashed rgba(0,196,122,0.3);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:all .2s}.upload-zone:hover,.upload-zone.drag-over{border-color:rgba(0,196,122,0.7);background:rgba(0,196,122,0.05)}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center}
+    .modal-box{background:#0d1826;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto}
+    .sel{background:#1a2332;border:1px solid rgba(255,255,255,0.15);color:white;padding:8px 12px;border-radius:8px;font-size:13px;width:100%;cursor:pointer}.sel:focus{outline:none;border-color:rgba(0,196,122,0.5)}
+    .src-tab{cursor:pointer;padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;transition:all .15s;border:1px solid transparent}
+    .src-tab-active{background:rgba(0,196,122,0.15);border-color:rgba(0,196,122,0.4);color:#00e5a0}
+    .src-tab-inactive{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:#6b7280}
+    .src-tab-inactive:hover{background:rgba(255,255,255,0.06);color:#9ca3af}
     [data-theme="light"] body{background:#f0f4f8!important;background-image:radial-gradient(ellipse 80% 50% at 20% 0%,rgba(0,180,120,0.04) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(100,70,255,0.03) 0%,transparent 60%)!important}
     [data-theme="light"] .t-white{color:#0f172a!important}[data-theme="light"] .t-gray-200{color:#1e293b!important}[data-theme="light"] .t-gray-300{color:#334155!important}[data-theme="light"] .t-gray-400{color:#475569!important}[data-theme="light"] .t-gray-500{color:#64748b!important}[data-theme="light"] .t-gray-600{color:#94a3b8!important}
     [data-theme="light"] .t-emerald-400{color:#059669!important}[data-theme="light"] .t-emerald-300{color:#10b981!important}[data-theme="light"] .t-emerald-500{color:#047857!important}
@@ -71,6 +79,10 @@
     [data-theme="light"] .s-fair{background:rgba(5,150,105,0.05)!important;border-color:rgba(5,150,105,0.15)!important}
     [data-theme="light"] .sc-ok{background:rgba(5,150,105,0.06)!important;border-color:rgba(5,150,105,0.15)!important}
     [data-theme="light"] .sc-bad{background:rgba(220,38,38,0.06)!important;border-color:rgba(220,38,38,0.15)!important}
+    [data-theme="light"] .modal-box{background:#fff!important;border-color:rgba(0,0,0,0.1)!important}
+    [data-theme="light"] .sel{background:#f1f5f9!important;border-color:#cbd5e1!important;color:#0f172a!important}
+    [data-theme="light"] .upload-zone{border-color:rgba(5,150,105,0.3)!important;background:rgba(5,150,105,0.02)!important}
+    [data-theme="light"] .upload-zone:hover{border-color:rgba(5,150,105,0.6)!important;background:rgba(5,150,105,0.05)!important}
   </style>
 </head>
 <body class="text-gray-200 font-sans antialiased">
@@ -78,164 +90,383 @@
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback} = React;
 
-const API_BASE = "";
+const DEFAULT_GROQ_KEY = "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";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const CIRC = 2 * Math.PI * 28;
 
-/* ── VERIFIED REFERENCE URLs ── */
-const REF_URLS = {
-  mehrabi:    "https://arxiv.org/abs/1908.09635",
-  barocas:    "https://fairmlbook.org/",
-  ferrara:    "https://doi.org/10.3390/sci6010023",
-  buolamwini: "https://proceedings.mlr.press/v81/buolamwini18a.html",
-  pessach:    "https://arxiv.org/abs/2201.04364",
-  propublica: "https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing",
-  reuters:    "https://www.reuters.com/article/us-amazon-com-jobs-automation-insight/amazon-scraps-secret-ai-recruiting-tool-that-showed-bias-against-women-idUSKCN1MK08G"
-};
-
-function R({href,children}){
-  return <a href={href} target="_blank" rel="noopener noreferrer" className="ref-link">{children}</a>;
-}
-
-/* ── FLEXIBLE CHAT REFERENCE PATTERNS ──
-   Catches citations regardless of formatting variations:
-   "Mehrabi et al. (2021)" / "Mehrabi et al., 2021" / "Mehrabi et al. 2021" etc.
-   "Pessach & Shmueli (2022)" / "Pessach and Shmueli, 2022" / "Pessach & Shmueli 2022" etc.
-   "Barocas, Hardt & Narayanan (2023)" / "Barocas et al. (2023)" / "Barocas et al., 2023" etc.
-   Uses .*? (non-greedy) to bridge author name to the year. */
-const CHAT_REF_PATTERNS = [
-  { re: /Mehrabi\s+et\s+al\.?\s*\(?\s*2021\s*\)?/gi,   url: REF_URLS.mehrabi },
-  { re: /Barocas[\s,]*(?:Hardt[\s&]*Narayanan)?\s*(?:et\s+al\.?)?\s*\(?\s*2023\s*\)?/gi, url: REF_URLS.barocas },
-  { re: /Ferrara\s*\(?\s*2024\s*\)?/gi,                  url: REF_URLS.ferrara },
-  { re: /Buolamwini\s*[&and]+\s*Gebru\s*\(?\s*2018\s*\)?/gi, url: REF_URLS.buolamwini },
-  { re: /Pessach\s*[&and]+\s*Shmueli\s*\(?\s*2022\s*\)?/gi,  url: REF_URLS.pessach },
-  { re: /ProPublica\s*\(?\s*2016\s*\)?/gi,               url: REF_URLS.propublica },
-  { re: /Reuters\s*\(?\s*2018\s*\)?/gi,                  url: REF_URLS.reuters },
-  { re: /Angwin\s+et\s+al\.?\s*\(?\s*2016\s*\)?/gi,     url: REF_URLS.propublica },
-  { re: /Dastin\s*\(?\s*2018\s*\)?/gi,                   url: REF_URLS.reuters }
-];
-
-function linkifyChatRefs(html){
-  let r = html;
-  for(const{re,url}of CHAT_REF_PATTERNS){
-    r = r.replace(re, match => {
-      /* Don't double-wrap if already inside an <a> tag */
-      const before = r.substring(Math.max(0, r.lastIndexOf('<a', r.indexOf(match)) - 1), r.indexOf(match) + match.length);
-      if (before.includes('href=')) return match;
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-ref-link">${match}</a>`;
-    });
+/* ── CSV PARSER ── */
+function parseCSVLine(line){
+  const r=[];let c='',q=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(q){if(ch==='"'&&line[i+1]==='"'){c+='"';i++}else if(ch==='"'){q=false}else c+=ch}
+    else{if(ch==='"')q=true;else if(ch===','){r.push(c);c=''}else c+=ch}
   }
-  return r;
+  r.push(c);return r;
+}
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)return null;
+  const headers=parseCSVLine(lines[0]).map(h=>h.trim());
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const vals=parseCSVLine(lines[i]);
+    if(vals.length>=headers.length){
+      const row={};headers.forEach((h,j)=>row[h]=vals[j]?.trim()??"");
+      rows.push(row);
+    }
+  }
+  return{headers,rows};
 }
 
-function diColor(di){
-  if(di===null)return"#374151";if(di>=0.9)return"#10b981";if(di>=0.8)return"#f59e0b";return"#ef4444";
+/* ── BUILT-IN DATASET ENGINE ── */
+function generateDataset(){
+  const seed=[42,17,83,56,91,28,64,35,77,11];
+  const inc=[25,30,35,40,45,50,55,60,65,70,75,80];
+  const trm=[12,24,36,48,60];
+  return seed.map((s,i)=>({
+    Income:inc[s%inc.length],Term:trm[s%trm.length],
+    Gender:i%2===0?"M":"F",
+    true_label:inc[s%inc.length]>=45?1:(s%3===0?1:0)
+  }));
 }
 
+function detectBiasBuiltIn(dataset){
+  const TH=40;
+  const ds=dataset.map(r=>{let sc=r.Income*0.8+r.Term*0.05;if(r.Gender==="F")sc-=12;return{...r,biased_pred:sc>=TH?1:0}});
+  const m=ds.filter(r=>r.Gender==="M"),f=ds.filter(r=>r.Gender==="F");
+  const mR=m.reduce((s,r)=>s+r.biased_pred,0)/m.length;
+  const fR=f.reduce((s,r)=>s+r.biased_pred,0)/f.length;
+  const di=mR>0?fR/mR:0;
+  return{di_score:Math.round(di*10000)/10000,verdict:di<0.8?"biased":(di<0.9?"marginal":"fair"),approval_rate_male:Math.round(mR*10000)/10000,approval_rate_female:Math.round(fR*10000)/10000,dataset:ds,groupRates:{M:mR,F:fR},protectedCol:"Gender",positiveValue:1};
+}
+
+function mitigateBiasBuiltIn(dataset,biasResult){
+  const TH=40;
+  const ds=biasResult.dataset.map(r=>{let fs=r.Income*0.8+r.Term*0.05;return{...r,fair_pred:fs>=TH?1:0}});
+  const m=ds.filter(r=>r.Gender==="M"),f=ds.filter(r=>r.Gender==="F");
+  const mR=m.reduce((s,r)=>s+r.fair_pred,0)/m.length;
+  const fR=f.reduce((s,r)=>s+r.fair_pred,0)/f.length;
+  const di=mR>0?fR/mR:1;
+  return{fair_di_score:Math.round(di*10000)/10000,approval_rate_male:Math.round(mR*10000)/10000,approval_rate_female:Math.round(fR*10000)/10000,dataset:ds};
+}
+
+/* ── CUSTOM DATASET ENGINE ── */
+function detectBiasCustom(rows,protectedCol,outcomeCol,positiveVal){
+  const groups={};
+  rows.forEach(r=>{
+    const g=String(r[protectedCol]);
+    if(!groups[g])groups[g]=[];
+    groups[g].push(r);
+  });
+  const rates={};
+  Object.entries(groups).forEach(([g,rs])=>{
+    const pos=rs.filter(r=>String(r[outcomeCol])===String(positiveVal)).length;
+    rates[g]=rs.length>0?pos/rs.length:0;
+  });
+  const rv=Object.values(rates);
+  const minR=Math.min(...rv),maxR=Math.max(...rv);
+  const di=maxR>0?minR/maxR:0;
+  const verdict=di<0.8?"biased":(di<0.9?"marginal":"fair");
+  const ds=rows.map(r=>({...r,biased_pred:String(r[outcomeCol])===String(positiveVal)?1:0}));
+  const sortedGroups=Object.entries(rates).sort((a,b)=>b[1]-a[1]);
+  return{
+    di_score:Math.round(di*10000)/10000,verdict,
+    approval_rate_male:Math.round(sortedGroups[0][1]*10000)/10000,
+    approval_rate_female:Math.round(sortedGroups[sortedGroups.length-1][1]*10000)/10000,
+    dataset:ds,groupRates:rates,protectedCol,outcomeCol,positiveValue:positiveVal,
+    groupNames:sortedGroups.map(([g])=>g)
+  };
+}
+
+function mitigateBiasCustom(rows,biasResult){
+  const{protectedCol,outcomeCol,positiveValue,groupRates}=biasResult;
+  const totalPos=rows.filter(r=>String(r[outcomeCol])===String(positiveValue)).length;
+  const overallRate=totalPos/rows.length;
+  const groups={};
+  rows.forEach(r=>{const g=String(r[protectedCol]);if(!groups[g])groups[g]=[];groups[g].push(r)});
+  const ds=[];
+  Object.entries(groups).forEach(([g,rs])=>{
+    const targetCount=Math.round(overallRate*rs.length);
+    const sorted=[...rs].sort((a,b)=>{
+      const aS=String(a[outcomeCol])===String(positiveValue)?1:0;
+      const bS=String(b[outcomeCol])===String(positiveValue)?1:0;
+      return bS-aS;
+    });
+    sorted.forEach((r,i)=>{
+      ds.push({...r,fair_pred:i<targetCount?1:0});
+    });
+  });
+  const newRates={};
+  Object.entries(groups).forEach(([g])=>{
+    const gRows=ds.filter(r=>String(r[protectedCol])===g);
+    newRates[g]=gRows.reduce((s,r)=>s+r.fair_pred,0)/gRows.length;
+  });
+  const rv=Object.values(newRates);
+  const minR=Math.min(...rv),maxR=Math.max(...rv);
+  const fairDI=maxR>0?minR/maxR:1;
+  const sortedGroups=Object.entries(newRates).sort((a,b)=>b[1]-a[1]);
+  return{
+    fair_di_score:Math.round(fairDI*10000)/10000,
+    approval_rate_male:Math.round(sortedGroups[0][1]*10000)/10000,
+    approval_rate_female:Math.round(sortedGroups[sortedGroups.length-1][1]*10000)/10000,
+    dataset:ds
+  };
+}
+
+/* ── REFS ── */
+const REF_URLS={mehrabi:"https://arxiv.org/abs/1908.09635",barocas:"https://fairmlbook.org/",ferrara:"https://doi.org/10.3390/sci6010023",buolamwini:"https://proceedings.mlr.press/v81/buolamwini18a.html",pessach:"https://arxiv.org/abs/2201.04364",propublica:"https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing",reuters:"https://www.reuters.com/article/us-amazon-com-jobs-automation-insight/amazon-scraps-secret-ai-recruiting-tool-that-showed-bias-against-women-idUSKCN1MK08G"};
+function R({href,children}){return<a href={href} target="_blank" rel="noopener noreferrer" className="ref-link">{children}</a>}
+
+const CHAT_REF_PATTERNS=[
+  {re:/Mehrabi\s+et\s+al\.?\s*\(?\s*2021\s*\)?/gi,url:REF_URLS.mehrabi},
+  {re:/Barocas[\s,]*(?:Hardt[\s&]*Narayanan)?\s*(?:et\s+al\.?)?\s*\(?\s*2023\s*\)?/gi,url:REF_URLS.barocas},
+  {re:/Ferrara\s*\(?\s*2024\s*\)?/gi,url:REF_URLS.ferrara},
+  {re:/Buolamwini\s*[&and]+\s*Gebru\s*\(?\s*2018\s*\)?/gi,url:REF_URLS.buolamwini},
+  {re:/Pessach\s*[&and]+\s*Shmueli\s*\(?\s*2022\s*\)?/gi,url:REF_URLS.pessach},
+  {re:/ProPublica\s*\(?\s*2016\s*\)?/gi,url:REF_URLS.propublica},
+  {re:/Reuters\s*\(?\s*2018\s*\)?/gi,url:REF_URLS.reuters},
+  {re:/Angwin\s+et\s+al\.?\s*\(?\s*2016\s*\)?/gi,url:REF_URLS.propublica},
+  {re:/Dastin\s*\(?\s*2018\s*\)?/gi,url:REF_URLS.reuters}
+];
+function linkifyChatRefs(html){let r=html;for(const{re,url}of CHAT_REF_PATTERNS)r=r.replace(re,m=>`<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-ref-link">${m}</a>`);return r}
+
+function diColor(di){if(di===null)return"#374151";if(di>=0.9)return"#10b981";if(di>=0.8)return"#f59e0b";return"#ef4444"}
 function PredBadge({pred,trueLabel}){
   if(pred===null||pred===undefined)return<span className="t-gray-600 text-gray-600">—</span>;
   const a=pred===1,c=pred===trueLabel;
   let cls=a?(c?"b-emerald":"b-yellow"):(c?"b-gray":"b-red");
   return<span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${cls}`}>{a?"✓ Approve":"✗ Deny"}</span>;
 }
-
 function GaugeSVG({value,color}){
   const arc=Math.min(Math.max(value||0,0),1)*CIRC;
   return(<svg className="g-svg mx-auto" width="72" height="72" viewBox="0 0 72 72"><circle className="g-bg" cx="36" cy="36" r="28"/><circle className="g-arc" cx="36" cy="36" r="28" stroke={color} strokeDasharray={`${arc} ${CIRC}`}/></svg>);
 }
 
+/* ── COLUMN MAPPING MODAL ── */
+function ColumnMapper({headers,rows,onConfirm,onCancel}){
+  const[protCol,setProtCol]=useState("");
+  const[outCol,setOutCol]=useState("");
+  const[posVal,setPosVal]=useState("");
+
+  useEffect(()=>{
+    const autoProt=headers.find(h=>/gender|sex|race|ethnicity|group/i.test(h))||"";
+    const autoOut=headers.find(h=>/label|approved|outcome|decision|target|class|y$/i.test(h))||"";
+    setProtCol(autoProt);setOutCol(autoOut);
+    if(autoOut){
+      const uniq=[...new Set(rows.map(r=>r[autoOut]))];
+      if(uniq.length<=2)setPosVal(uniq.includes("1")?"1":uniq.includes("Yes")?"Yes":uniq.includes("Approved")?"Approved":uniq[0]||"");
+    }
+  },[headers,rows]);
+
+  const canConfirm=protCol&&outCol&&posVal!=="";
+  const uniqVals=outCol?[...new Set(rows.map(r=>r[outCol]))]:[];
+
+  return(
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <h3 className="t-white text-white font-bold text-lg mb-1"><i className="fas fa-columns t-emerald-400 text-emerald-400 mr-2"></i>Map Your Dataset Columns</h3>
+        <p className="t-gray-400 text-gray-400 text-xs mb-5">Select which columns represent the protected attribute and the decision outcome.</p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold t-gray-300 text-gray-300 mb-1.5"><i className="fas fa-shield-alt t-emerald-400 text-emerald-400 mr-1"></i>Protected Attribute (e.g., Gender, Race)</label>
+            <select className="sel" value={protCol} onChange={e=>setProtCol(e.target.value)}>
+              <option value="">— Select column —</option>
+              {headers.map(h=><option key={h} value={h}>{h}</option>)}
+            </select>
+            {protCol&&<p className="text-[10px] t-gray-500 text-gray-500 mt-1">Values: {[...new Set(rows.map(r=>r[protCol]))].slice(0,6).join(", ")}{[...new Set(rows.map(r=>r[protCol]))].length>6?"…":""}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold t-gray-300 text-gray-300 mb-1.5"><i className="fas fa-check-circle t-purple-400 text-purple-400 mr-1"></i>Outcome / Decision Column</label>
+            <select className="sel" value={outCol} onChange={e=>{setOutCol(e.target.value);setPosVal("")}}>
+              <option value="">— Select column —</option>
+              {headers.map(h=><option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+          {outCol&&uniqVals.length<=10&&(
+            <div>
+              <label className="block text-xs font-semibold t-gray-300 text-gray-300 mb-1.5"><i className="fas fa-thumbs-up t-yellow-400 text-yellow-400 mr-1"></i>Positive Outcome Value (approval / success)</label>
+              <select className="sel" value={posVal} onChange={e=>setPosVal(e.target.value)}>
+                <option value="">— Select value —</option>
+                {uniqVals.map(v=><option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-3 mt-6 pt-4 border-t border-d border-white/[0.06]">
+          <button onClick={onCancel} className="flex-1 bg-gray-800 hover:bg-gray-700 t-gray-300 text-gray-300 text-sm font-medium py-2.5 rounded-lg transition">Cancel</button>
+          <button onClick={()=>canConfirm&&onConfirm({protectedCol:protCol,outcomeCol:outCol,positiveValue:posVal})} disabled={!canConfirm} className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-lg transition">
+            <i className="fas fa-check mr-1"></i>Confirm Mapping
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── PROTOTYPE ── */
 function PrototypeSection(){
-  const[dataset,setDataset]=useState([]);
+  const[source,setSource]=useState("builtin");
+  const[builtInDS]=useState(generateDataset);
+  const[customRows,setCustomRows]=useState([]);
+  const[customHeaders,setCustomHeaders]=useState([]);
+  const[customConfig,setCustomConfig]=useState(null);
+  const[showMapper,setShowMapper]=useState(false);
   const[loading,setLoading]=useState(false);
-  const[error,setError]=useState(null);
   const[biasResult,setBiasResult]=useState(null);
   const[mitigResult,setMitigResult]=useState(null);
   const[step,setStep]=useState("idle");
+  const[fileError,setFileError]=useState(null);
+  const fileRef=useRef(null);
 
-  useEffect(()=>{(async()=>{try{const r=await fetch(`${API_BASE}/api/dataset`);if(!r.ok)throw new Error(`${r.status}`);const j=await r.json();setDataset(j.dataset)}catch(e){setError("⚠ Could not reach FastAPI backend. Make sure main.py is running on port 8000.")}})()},[]);
+  const dataset=source==="builtin"?builtInDS:customRows;
+  const canDetect=source==="builtin"?dataset.length>0:(dataset.length>0&&customConfig!==null);
 
-  const handleDetect=async()=>{
-    if(!dataset.length)return;
-    setLoading(true);setError(null);setMitigResult(null);
-    try{
-      const r=await fetch(`${API_BASE}/api/detect-bias`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({dataset})
-      });
-      if(!r.ok) throw new Error(`Server returned ${r.status}`);
-      const j=await r.json();
-      setBiasResult(j);setStep("detected");
-    }catch(e){
-      setError("⚠ Bias detection failed: "+e.message);
-    }finally{setLoading(false)}
+  const handleFile=e=>{
+    const file=e.target.files?.[0];if(!file)return;
+    setFileError(null);setBiasResult(null);setMitigResult(null);setStep("idle");setCustomConfig(null);
+    if(!file.name.endsWith(".csv")&&!file.name.endsWith(".txt")){setFileError("⚠ Please upload a .csv file.");return}
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const result=parseCSV(ev.target.result);
+      if(!result||result.rows.length===0){setFileError("⚠ Could not parse CSV. Make sure it has headers and at least 1 data row.");return}
+      setCustomHeaders(result.headers);setCustomRows(result.rows);
+      setShowMapper(true);
+    };
+    reader.readAsText(file);
   };
 
-  const handleMitigate=async()=>{
-    if(!dataset.length)return;
-    setLoading(true);setError(null);
-    try{
-      const r=await fetch(`${API_BASE}/api/mitigate`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({dataset})
-      });
-      if(!r.ok) throw new Error(`Server returned ${r.status}`);
-      const j=await r.json();
-      setMitigResult(j);setStep("mitigated");
-    }catch(e){
-      setError("⚠ Mitigation failed: "+e.message);
-    }finally{setLoading(false)}
+  const handleMapping=config=>{
+    setCustomConfig(config);setShowMapper(false);
   };
 
-  const handleReset=()=>{setBiasResult(null);setMitigResult(null);setStep("idle");setError(null)};
+  const handleDetect=()=>{
+    if(!canDetect)return;setLoading(true);setMitigResult(null);
+    setTimeout(()=>{
+      const result=source==="builtin"?detectBiasBuiltIn(dataset):detectBiasCustom(dataset,customConfig.protectedCol,customConfig.outcomeCol,customConfig.positiveValue);
+      setBiasResult(result);setStep("detected");setLoading(false);
+    },500);
+  };
 
-  const tableRows=dataset.map((row,i)=>{const m=mitigResult?.dataset?.[i];return{...row,fair_pred:m?.fair_pred??null}});
+  const handleMitigate=()=>{
+    if(!biasResult)return;setLoading(true);
+    setTimeout(()=>{
+      const result=source==="builtin"?mitigateBiasBuiltIn(dataset,biasResult):mitigateBiasCustom(dataset,biasResult);
+      setMitigResult(result);setStep("mitigated");setLoading(false);
+    },500);
+  };
+
+  const handleReset=()=>{setBiasResult(null);setMitigResult(null);setStep("idle")};
+
+  /* Build table rows */
+  const tableRows=dataset.map((row,i)=>{
+    const br=biasResult?.dataset?.[i];
+    const mr=mitigResult?.dataset?.[i];
+    if(source==="builtin"){
+      return{...row,biased_pred:br?.biased_pred??null,fair_pred:mr?.fair_pred??null};
+    }
+    return{...row,biased_pred:br?.biased_pred??null,fair_pred:mr?.fair_pred??null};
+  });
+
   const biasedDI=biasResult?.di_score??null;
   const fairDI=mitigResult?.fair_di_score??null;
+  const protCol=source==="builtin"?"Gender":(customConfig?.protectedCol||"");
+  const outCol=source==="builtin"?"true_label":(customConfig?.outcomeCol||"");
 
+  /* Determine table display columns */
+  const displayCols=source==="builtin"
+    ?[{k:"Income",l:"Income"},{k:"Term",l:"Term"},{k:"Gender",l:"Gender"},{k:"true_label",l:"True Label"}]
+    :customHeaders.slice(0,6).map(h=>({k:h,l:h}));
+
+  /* Status panel */
   let statusCls="card-inset s-idle";
   let statusContent=<p className="text-sm t-gray-300 text-gray-300 leading-relaxed">Click <strong className="t-purple-400 text-purple-400">Detect Bias</strong> to run the analysis.</p>;
 
   if(step==="detected"&&biasResult){
     const ib=biasResult.verdict==="biased";
     statusCls=ib?"s-biased":"s-marginal";
-    statusContent=(<><p className="text-sm leading-relaxed"><span className={ib?"t-red-400 text-red-400 font-semibold":"t-yellow-400 text-yellow-400 font-semibold"}>{ib?"⚠ Bias Detected":"⚠ Marginal Fairness"}</span>{" — "}DI = <strong className="t-white text-white">{biasResult.di_score.toFixed(3)}</strong>{ib?" (below 0.8).":" (between 0.8 and 0.9)."}</p><p className="t-gray-400 text-gray-400 text-xs mt-1">Female approval rate: {(biasResult.approval_rate_female*100).toFixed(0)}% vs male: {(biasResult.approval_rate_male*100).toFixed(0)}%. Click <strong className="t-emerald-400 text-emerald-400">Apply CF Fairness</strong> to fix.</p></>);
+    statusContent=(<><p className="text-sm leading-relaxed"><span className={ib?"t-red-400 text-red-400 font-semibold":"t-yellow-400 text-yellow-400 font-semibold"}>{ib?"⚠ Bias Detected":"⚠ Marginal Fairness"}</span>{" — "}DI = <strong className="t-white text-white">{biasResult.di_score.toFixed(3)}</strong>{ib?" (below 0.8).":" (between 0.8 and 0.9)."}</p>
+    {biasResult.groupRates&&<p className="t-gray-400 text-gray-400 text-xs mt-1">Group rates: {Object.entries(biasResult.groupRates).map(([g,r])=>`${g}: ${(r*100).toFixed(0)}%`).join(" vs ")}{". "}Click <strong className="t-emerald-400 text-emerald-400">Apply CF Fairness</strong> to fix.</p>}</>);
   }
   if(step==="mitigated"&&mitigResult){
     statusCls="s-fair";
-    statusContent=(<><p className="text-sm leading-relaxed"><span className="t-emerald-400 text-emerald-400 font-semibold">✔ Mitigation Applied</span>{" — "}DI: <strong className="t-red-400 text-red-400">{biasedDI?.toFixed(3)}</strong>{" → "}<strong className="t-emerald-400 text-emerald-400">{fairDI?.toFixed(3)}</strong>.</p><p className="t-gray-400 text-gray-400 text-xs mt-1">Gender penalty removed. Decisions are counterfactually fair. <span className="t-emerald-500 text-emerald-500">IEEE 7003-2024 compliant.</span></p></>);
+    statusContent=(<><p className="text-sm leading-relaxed"><span className="t-emerald-400 text-emerald-400 font-semibold">✔ Mitigation Applied</span>{" — "}DI: <strong className="t-red-400 text-red-400">{biasedDI?.toFixed(3)}</strong>{" → "}<strong className="t-emerald-400 text-emerald-400">{fairDI?.toFixed(3)}</strong>.</p><p className="t-gray-400 text-gray-400 text-xs mt-1">Outcomes equalized across groups. <span className="t-emerald-500 text-emerald-500">IEEE 7003-2024 compliant.</span></p></>);
   }
 
   return(
     <section id="prototype" className="mt-14">
+      {showMapper&&<ColumnMapper headers={customHeaders} rows={customRows} onConfirm={handleMapping} onCancel={()=>{setShowMapper(false)}}/>}
       <div className="flex items-center gap-3 mb-1"><div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div><h2 className="text-xl font-bold t-white text-white">Prototype — FairLens Bias Detection Pipeline</h2></div>
-      <p className="text-xs t-gray-500 text-gray-500 ml-5 mb-5">Live interactive demo · Synthetic loan dataset (10 applicants) · FastAPI backend · IEEE 7003-2024</p>
-      {error&&<div className="mb-4 bg-red-950/40 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm">{error}</div>}
+      <p className="text-xs t-gray-500 text-gray-500 ml-5 mb-5">Live interactive demo · Built-in or custom datasets · Self-contained engine · IEEE 7003-2024</p>
+
       <div className="card-prototype bg-gray-950/80 border border-emerald-500/10 rounded-2xl p-5 md:p-7">
-        <div className="flex flex-wrap gap-2 mb-6 text-[11px] t-gray-500 text-gray-500">
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-shield-alt mr-1 t-emerald-500 text-emerald-500"></i>Protected attribute: Gender (M / F)</span>
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-users mr-1 t-purple-400 text-purple-400"></i>10 synthetic loan applicants</span>
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-exclamation-circle mr-1 t-red-400 text-red-400"></i>Biased model: −12 pt hidden gender penalty</span>
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-server mr-1 t-blue-300 text-blue-300"></i>Powered by FastAPI + Pandas</span>
+        {/* Source Tabs */}
+        <div className="flex items-center gap-2 mb-5">
+          <button onClick={()=>{setSource("builtin");handleReset()}} className={`src-tab ${source==="builtin"?"src-tab-active":"src-tab-inactive"}`}><i className="fas fa-database mr-1"></i>Built-in Dataset</button>
+          <button onClick={()=>setSource("custom")} className={`src-tab ${source==="custom"?"src-tab-active":"src-tab-inactive"}`}><i className="fas fa-upload mr-1"></i>Upload CSV</button>
         </div>
+
+        {/* Upload Zone */}
+        {source==="custom"&&(
+          <div className="mb-5">
+            {!customConfig?(
+              <div className="upload-zone" onClick={()=>fileRef.current?.click()} onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("drag-over")}} onDragLeave={e=>e.currentTarget.classList.remove("drag-over")} onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove("drag-over");const f=e.dataTransfer.files?.[0];if(f){const dt=new DataTransfer();dt.items.add(f);fileRef.current.files=dt.files;handleFile({target:{files:[f]}})}}}>
+                <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile}/>
+                <i className="fas fa-cloud-upload-alt t-emerald-400 text-emerald-400 text-2xl mb-2"></i>
+                <p className="t-gray-300 text-gray-300 text-sm font-semibold">Drop your CSV here or click to browse</p>
+                <p className="t-gray-500 text-gray-500 text-xs mt-1">Must include a protected attribute column and an outcome column</p>
+              </div>
+            ):(
+              <div className="flex items-center gap-3 bg-emerald-900/20 border border-emerald-500/20 rounded-lg px-4 py-2.5 text-xs">
+                <i className="fas fa-check-circle t-emerald-400 text-emerald-400"></i>
+                <span className="t-gray-300 text-gray-300"><strong className="t-white text-white">{customRows.length}</strong> rows loaded · Protected: <strong className="t-emerald-400 text-emerald-400">{customConfig.protectedCol}</strong> · Outcome: <strong className="t-purple-400 text-purple-400">{customConfig.outcomeCol}</strong> = "{customConfig.positiveValue}"</span>
+                <button onClick={()=>{setCustomConfig(null);setCustomRows([]);setCustomHeaders([]);handleReset()}} className="ml-auto t-gray-500 text-gray-500 hover:t-red-400 hover:text-red-400 transition"><i className="fas fa-times"></i></button>
+              </div>
+            )}
+            {fileError&&<p className="text-red-400 text-xs mt-2">{fileError}</p>}
+          </div>
+        )}
+
+        {/* Tags */}
+        <div className="flex flex-wrap gap-2 mb-6 text-[11px] t-gray-500 text-gray-500">
+          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-shield-alt mr-1 t-emerald-500 text-emerald-500"></i>Protected: {protCol||"—"}</span>
+          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-users mr-1 t-purple-400 text-purple-400"></i>{dataset.length} applicants</span>
+          {source==="builtin"&&<span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-exclamation-circle mr-1 t-red-400 text-red-400"></i>Biased model: −12 pt gender penalty</span>}
+          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-microchip mr-1 t-blue-300 text-blue-300"></i>Self-contained engine</span>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           <div className="lg:col-span-3 card-inset bg-black/20 border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold t-white text-white mb-3 flex items-center gap-2"><i className="fas fa-table t-emerald-400 text-emerald-400 text-xs"></i>Loan Applicant Dataset{loading&&<span className="spin t-emerald-400 text-emerald-400 text-xs ml-1"><i className="fas fa-circle-notch"></i></span>}</h3>
+            <h3 className="text-sm font-semibold t-white text-white mb-3 flex items-center gap-2"><i className="fas fa-table t-emerald-400 text-emerald-400 text-xs"></i>Dataset{loading&&<span className="spin t-emerald-400 text-emerald-400 text-xs ml-1"><i className="fas fa-circle-notch"></i></span>}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left t-gray-400 text-gray-400">
-                <thead><tr className="table-header bg-gray-800/50 t-gray-500 text-gray-500 text-[10px] uppercase tracking-wider"><th className="px-2 py-2">#</th><th className="px-2 py-2">Income</th><th className="px-2 py-2">Term</th><th className="px-2 py-2">Gender</th><th className="px-2 py-2">True Label</th><th className="px-2 py-2">Biased Pred</th><th className="px-2 py-2">Fair Pred</th></tr></thead>
+                <thead><tr className="table-header bg-gray-800/50 t-gray-500 text-gray-500 text-[10px] uppercase tracking-wider">
+                  <th className="px-2 py-2">#</th>
+                  {displayCols.map(c=><th key={c.k} className="px-2 py-2">{c.l}</th>)}
+                  <th className="px-2 py-2">Biased Pred</th>
+                  <th className="px-2 py-2">Fair Pred</th>
+                </tr></thead>
                 <tbody>
-                  {tableRows.length===0?<tr><td colSpan="7" className="text-center py-6 t-gray-600 text-gray-600 text-xs">{error?"Failed to load dataset.":"Loading dataset from API…"}</td></tr>:tableRows.map((row,i)=>(
-                    <tr key={i} className="tbl-row"><td className="px-2 py-1.5 t-gray-600 text-gray-600 text-[10px]">{i+1}</td><td className="px-2 py-1.5">{row.Income}k</td><td className="px-2 py-1.5">{row.Term}mo</td><td className="px-2 py-1.5"><span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${row.Gender==="M"?"b-blue":"b-pink"}`}>{row.Gender}</span></td><td className="px-2 py-1.5"><PredBadge pred={row.true_label} trueLabel={row.true_label}/></td><td className="px-2 py-1.5">{step!=="idle"?<PredBadge pred={row.biased_pred} trueLabel={row.true_label}/>:<span className="t-gray-600 text-gray-600">—</span>}</td><td className="px-2 py-1.5">{row.fair_pred!==null?<PredBadge pred={row.fair_pred} trueLabel={row.true_label}/>:<span className="t-gray-600 text-gray-600">—</span>}</td></tr>
+                  {tableRows.length===0?<tr><td colSpan={3+displayCols.length} className="text-center py-6 t-gray-600 text-gray-600 text-xs">{source==="custom"?"Upload a CSV to begin.":"Loading…"}</td></tr>:
+                  tableRows.slice(0,20).map((row,i)=>(
+                    <tr key={i} className="tbl-row">
+                      <td className="px-2 py-1.5 t-gray-600 text-gray-600 text-[10px]">{i+1}</td>
+                      {displayCols.map(c=>(
+                        <td key={c.k} className="px-2 py-1.5">
+                          {c.k===protCol?<span className={`px-1.5 py-0.5 rounded text-[10px] font-bold b-blue`}>{String(row[c.k])}</span>:String(row[c.k])}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1.5">{step!=="idle"?<PredBadge pred={row.biased_pred} trueLabel={row[outCol]}/>:<span className="t-gray-600 text-gray-600">—</span>}</td>
+                      <td className="px-2 py-1.5">{row.fair_pred!==null&&row.fair_pred!==undefined?<PredBadge pred={row.fair_pred} trueLabel={row[outCol]}/>:<span className="t-gray-600 text-gray-600">—</span>}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
+              {tableRows.length>20&&<p className="text-[10px] t-gray-500 text-gray-500 mt-2 text-center">Showing 20 of {tableRows.length} rows</p>}
             </div>
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-ds border-white/[0.05]">
-              <button onClick={handleDetect} disabled={loading||!dataset.length} className="flex items-center gap-1.5 bg-purple-700 hover:bg-purple-600 active:scale-95 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"><i className="fas fa-search"></i>1. Detect Bias</button>
-              <button onClick={handleMitigate} disabled={loading||!dataset.length} className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-95 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"><i className="fas fa-sync-alt"></i>2. Apply CF Fairness</button>
+              <button onClick={handleDetect} disabled={loading||!canDetect} className="flex items-center gap-1.5 bg-purple-700 hover:bg-purple-600 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"><i className="fas fa-search"></i>1. Detect Bias</button>
+              <button onClick={handleMitigate} disabled={loading||step==="idle"} className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"><i className="fas fa-sync-alt"></i>2. Apply CF Fairness</button>
               <button onClick={handleReset} disabled={loading} className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 active:scale-95 t-gray-300 text-gray-300 text-xs font-medium px-4 py-2 rounded-lg transition-all"><i className="fas fa-undo-alt"></i>Reset</button>
             </div>
           </div>
@@ -249,16 +480,16 @@ function PrototypeSection(){
               </div>
               <div className="mt-5"><div className="di-track">{biasedDI!==null&&<div className="di-pin bg-white" style={{left:`${Math.min(Math.max(biasedDI,0),1)*100}%`}}></div>}{fairDI!==null&&<div className="di-pin bg-emerald-400" style={{left:`${Math.min(Math.max(fairDI,0),1)*100}%`}}></div>}</div><div className="flex justify-between text-[9px] t-gray-600 text-gray-600 mt-1.5"><span>0.0 Biased</span><span>0.8</span><span>0.9</span><span>1.0 Fair</span></div></div>
               <div className="mt-4 pt-3 border-t border-ds border-white/[0.05] space-y-1.5 text-[11px]">
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all sc-ok ${biasedDI!==null&&biasedDI>=0.9?"bg-emerald-900/20 border border-emerald-500/20":""}`}><span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span><span className="t-gray-400 text-gray-400"><span className="t-emerald-400 text-emerald-400 font-bold">DI ≥ 0.9</span> — AI treats everyone equally</span></div>
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all sc-bad ${biasedDI!==null&&biasedDI<=0.8?"bg-red-900/20 border border-red-500/20":""}`}><span className="w-2 h-2 rounded-full bg-red-400 shrink-0"></span><span className="t-gray-400 text-gray-400"><span className="t-red-400 text-red-400 font-bold">DI ≤ 0.8</span> — AI is biased (IEEE violation)</span></div>
+                <div className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all sc-ok ${biasedDI!==null&&biasedDI>=0.9?"bg-emerald-900/20 border border-emerald-500/20":""}`}><span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span><span className="t-gray-400 text-gray-400"><span className="t-emerald-400 text-emerald-400 font-bold">DI ≥ 0.9</span> — Fair</span></div>
+                <div className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all sc-bad ${biasedDI!==null&&biasedDI<=0.8?"bg-red-900/20 border border-red-500/20":""}`}><span className="w-2 h-2 rounded-full bg-red-400 shrink-0"></span><span className="t-gray-400 text-gray-400"><span className="t-red-400 text-red-400 font-bold">DI ≤ 0.8</span> — Biased (IEEE violation)</span></div>
               </div>
             </div>
             <div className={`${statusCls} rounded-xl p-4 flex-1 card-inset bg-black/20 border border-white/[0.06]`}><p className="text-[10px] t-gray-500 text-gray-500 uppercase tracking-wider mb-2"><i className="fas fa-circle-info t-emerald-500 text-emerald-500 mr-1"></i>Pipeline Status</p>{statusContent}</div>
-            {step==="mitigated"&&biasResult&&mitigResult&&(<div className="grid grid-cols-2 gap-3"><div className="card-inset bg-black/20 border border-white/[0.06] rounded-xl p-3 text-center"><div className="text-base font-black t-red-400 text-red-400">{(biasResult.approval_rate_female*100).toFixed(0)}%</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Biased ♀ Approval</div></div><div className="card-inset bg-black/20 border border-white/[0.06] rounded-xl p-3 text-center"><div className="text-base font-black t-emerald-400 text-emerald-400">{(mitigResult.approval_rate_female*100).toFixed(0)}%</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Fair ♀ Approval</div></div></div>)}
+            {step==="mitigated"&&biasResult&&mitigResult&&(<div className="grid grid-cols-2 gap-3"><div className="card-inset bg-black/20 border border-white/[0.06] rounded-xl p-3 text-center"><div className="text-base font-black t-red-400 text-red-400">{(biasResult.approval_rate_female*100).toFixed(0)}%</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Biased Min-Group Rate</div></div><div className="card-inset bg-black/20 border border-white/[0.06] rounded-xl p-3 text-center"><div className="text-base font-black t-emerald-400 text-emerald-400">{(mitigResult.approval_rate_female*100).toFixed(0)}%</div><div className="text-[10px] t-gray-600 text-gray-600 mt-0.5">Fair Min-Group Rate</div></div></div>)}
           </div>
         </div>
         <div className="mt-5 pt-4 border-t border-ds border-white/[0.05] grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] t-gray-500 text-gray-500">
-          <div><span className="t-purple-400 text-purple-400 font-bold">DI Formula: </span>Approval rate (women) ÷ Approval rate (men)</div>
+          <div><span className="t-purple-400 text-purple-400 font-bold">DI Formula: </span>Min group rate ÷ Max group rate</div>
           <div><span className="t-red-400 text-red-400 font-bold">DI ≤ 0.8: </span>Discriminatory — IEEE 7003-2024 violation</div>
           <div><span className="t-emerald-400 text-emerald-400 font-bold">DI ≥ 0.9: </span>Fair — IEEE 7003-2024 compliant</div>
         </div>
@@ -267,75 +498,54 @@ function PrototypeSection(){
   );
 }
 
-/* ── CHATBOT SYSTEM PROMPT (upgraded for deeper analysis) ── */
-const SYSTEM_PROMPT = `You are the FairLens AI Coach — a precise, analytically rigorous assistant for CS 323 at North Eastern Mindanao State University (NEMSU). Built by Emmanuel Amista under Dr. Catherine R. Alimboyong.
-
-LANGUAGE AUTO-DETECTION (MANDATORY):
-Detect the language the user writes in and ALWAYS respond in that SAME language.
-- English → respond in English
-- Filipino/Tagalog → respond in Filipino/Tagalog
-- Cebuano/Bisaya → respond in Cebuano/Bisaya
-- Mixed language → use the dominant language
-- Never switch languages unless the user explicitly requests it
-
-ANALYTICAL DEPTH:
-When asked about solutions, recommendations, or complex topics, provide structured step-by-step reasoning:
-1. Define the core concept clearly
-2. Explain WHY it matters (the causal mechanism or ethical rationale)
-3. Provide concrete examples or evidence from the allowed references
-4. Note limitations or trade-offs where relevant
-This deeper structure applies especially to questions about IEEE 7003-2024, counterfactual fairness, DI mitigation strategies, and ACM Code of Ethics alignment.
-
-ALLOWED REFERENCES (ONLY cite from this list — NEVER invent references):
-1. Mehrabi et al. (2021) — "A Survey on Bias and Fairness in Machine Learning," ACM Computing Surveys 54(6). https://arxiv.org/abs/1908.09635
-2. Barocas, Hardt & Narayanan (2023) — "Fairness and Machine Learning," MIT Press. https://fairmlbook.org/
-3. Ferrara (2024) — "Should ChatGPT Be Biased? Challenges and Risks of Bias in Large Language Models," Sci 6(1), Article 23. https://doi.org/10.3390/sci6010023
-4. Buolamwini & Gebru (2018) — "Gender Shades: Intersectional Accuracy Disparities in Commercial Gender Classification," PMLR 81. https://proceedings.mlr.press/v81/buolamwini18a.html
-5. Pessach & Shmueli (2022) — "A Review on Fairness in Machine Learning," ACM Computing Surveys 55(3). https://arxiv.org/abs/2201.04364
-6. ProPublica / Angwin et al. (2016) — "Machine Bias." https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing
-7. Reuters / Dastin (2018) — "Amazon Scraps Secret AI Recruiting Tool That Showed Bias Against Women." https://www.reuters.com/article/us-amazon-com-jobs-automation-insight/amazon-scraps-secret-ai-recruiting-tool-that-showed-bias-against-women-idUSKCN1MK08G
-
-VERIFIED STATISTICS (do NOT add numbers beyond these):
-- Gender Shades: 34.7% error rate for darker-skinned women vs 0.8% for lighter-skinned men (Buolamwini & Gebru, 2018)
-- 67% of facial recognition benchmark images depict lighter-skinned subjects (Buolamwini & Gebru, 2018)
-- COMPAS: 45% false-positive rate for Black defendants vs 24% for white defendants (ProPublica, 2016)
-- Amazon AI: trained on 10 years of résumés (mostly from men), penalized "women's," scrapped in 2018 (Reuters, 2018)
-- DI formula: approval rate (protected group) ÷ approval rate (majority group)
-- DI ≥ 0.9 = fair; DI between 0.8–0.9 = marginal; DI ≤ 0.8 = discriminatory (IEEE 7003-2024)
-- FairLens prototype: 10 synthetic applicants, biased model applies −12 pt penalty for female gender, fair model removes it
-- Counterfactual fairness: a decision is fair if it would be identical had the protected attribute been different (Barocas et al., 2023)
-- AIF360: IBM open-source toolkit for bias detection and mitigation
-- ACM Code of Ethics: Principles 1.2 (Avoid Harm), 1.4 (Be Fair), 2.5 (Comprehensive Evaluations)
-
-STRICT RULES:
-1. Respond with analytical depth. Use step-by-step reasoning for complex questions.
-2. ONLY cite references from the list above. Format: Author (Year). Never invent references.
-3. NEVER fabricate statistics, author names, or references not in the list.
-4. If uncertain about a fact, say: "I am not certain about this specific detail."
-5. If asked outside your scope, say: "That is outside my scope. I specialize in algorithmic bias and fairness."
-6. ALWAYS match the user's language exactly — this is mandatory.
-7. Do NOT begin with filler like "Great question." Start directly with the answer.`;
-
 /* ── CHATBOT ── */
+const SYSTEM_PROMPT = `You are the FairLens AI Coach — a precise, analytically rigorous assistant for CS 323 at NEMSU. Built by Emmanuel Amista under Dr. Catherine R. Alimboyong.
+
+LANGUAGE AUTO-DETECTION (MANDATORY): Detect the user's language and respond in the SAME language. English→English, Filipino/Tagalog→Filipino, Cebuano/Bisaya→Cebuano. Never switch unless explicitly requested.
+
+ANALYTICAL DEPTH: For complex questions, use structured step-by-step reasoning: 1) Define the concept 2) Explain WHY it matters 3) Provide evidence from allowed references 4) Note limitations.
+
+ALLOWED REFERENCES (ONLY cite from this list — NEVER invent):
+1. Mehrabi et al. (2021) — ACM Computing Surveys 54(6). https://arxiv.org/abs/1908.09635
+2. Barocas, Hardt & Narayanan (2023) — MIT Press. https://fairmlbook.org/
+3. Ferrara (2024) — Sci 6(1). https://doi.org/10.3390/sci6010023
+4. Buolamwini & Gebru (2018) — PMLR 81. https://proceedings.mlr.press/v81/buolamwini18a.html
+5. Pessach & Shmueli (2022) — ACM Computing Surveys 55(3). https://arxiv.org/abs/2201.04364
+6. ProPublica / Angwin et al. (2016). https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing
+7. Reuters / Dastin (2018). https://www.reuters.com/article/us-amazon-com-jobs-automation-insight/amazon-scraps-secret-ai-recruiting-tool-that-showed-bias-against-women-idUSKCN1MK08G
+
+VERIFIED STATS: Gender Shades 34.7% vs 0.8% error (Buolamwini & Gebru 2018). COMPAS 45% vs 24% FPR (ProPublica 2016). Amazon scrapped 2018 (Reuters 2018). DI=protected_rate/majority_rate. DI≥0.9 fair, 0.8-0.9 marginal, ≤0.8 biased (IEEE 7003-2024). FairLens: −12pt female penalty, fair model removes it. Counterfactual fairness (Barocas et al. 2023). ACM 1.2, 1.4, 2.5.
+
+RULES: 1) Analytical depth with step-by-step for complex Qs. 2) ONLY cite from list above. 3) NEVER fabricate stats/authors. 4) If uncertain say so. 5) If outside scope say so. 6) ALWAYS match user language. 7) No filler openings.`;
+
 function Chatbot(){
   const[isOpen,setIsOpen]=useState(false);
   const[history,setHistory]=useState([]);
   const[input,setInput]=useState("");
   const[isLoading,setIsLoading]=useState(false);
   const[messages,setMessages]=useState([]);
+  const[showKeyConfig,setShowKeyConfig]=useState(false);
+  const[apiKey,setApiKey]=useState(()=>{
+    try{return localStorage.getItem("fairlens-groq-key")||""}catch{return""}
+  });
+  const[apiError,setApiError]=useState(null);
   const endRef=useRef(null);
   const abortRef=useRef(null);
 
+  const activeKey=apiKey||DEFAULT_GROQ_KEY;
+
   useEffect(()=>{
-    setMessages([{role:"bot",html:`<p>Hello! I'm the <strong>FairLens AI Coach</strong>.<br>Ask me about algorithmic bias, fairness metrics, or how this pipeline works. I can respond in <strong>English</strong>, <strong>Filipino/Tagalog</strong>, or <strong>Cebuano/Bisaya</strong> — just type in your preferred language!</p>`}]);
+    setMessages([{role:"bot",html:`<p>Hello! I'm the <strong>FairLens AI Coach</strong>.<br>Ask me about algorithmic bias, fairness metrics, or how this pipeline works. I can respond in <strong>English</strong>, <strong>Filipino/Tagalog</strong>, or <strong>Cebuano/Bisaya</strong> — just type in your preferred language!</p>`}];
     setHistory([]);setInput("");
   },[]);
 
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[messages,isLoading]);
 
+  const saveKey=k=>{setApiKey(k);try{localStorage.setItem("fairlens-groq-key",k)}catch{}};
+
   const sendMessage=useCallback(async(text)=>{
     if(!text.trim()||isLoading)return;
-    const ut=text.trim();setInput("");
+    const ut=text.trim();setInput("");setApiError(null);
     setMessages(p=>[...p,{role:"user",text:ut}]);
     const nh=[...history,{role:"user",content:ut}];setHistory(nh);setIsLoading(true);
     let reply;
@@ -343,49 +553,56 @@ function Chatbot(){
       const ctrl=new AbortController();abortRef.current=ctrl;
       const res=await fetch(GROQ_URL,{
         method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":`Bearer ${GROQ_KEY}`},
-        body:JSON.stringify({
-          model:"llama-3.3-70b-versatile",
-          messages:[{role:"system",content:SYSTEM_PROMPT},...nh],
-          temperature:0.4,
-          max_tokens:800,
-          top_p:0.9,
-          frequency_penalty:0.25,
-          presence_penalty:0.1
-        }),
+        headers:{"Content-Type":"application/json","Authorization":`Bearer ${activeKey}`},
+        body:JSON.stringify({model:"llama-3.3-70b-versatile",messages:[{role:"system",content:SYSTEM_PROMPT},...nh],temperature:0.4,max_tokens:800,top_p:0.9,frequency_penalty:0.25,presence_penalty:0.1}),
         signal:ctrl.signal
       });
       const data=await res.json();
-      reply=res.ok?(data.choices?.[0]?.message?.content||"(Empty response.)"):`⚠ API error ${res.status}: ${data.error?.message||"unknown"}`;
+      if(!res.ok){
+        const errMsg=data.error?.message||"Unknown error";
+        if(res.status===401){setApiError("⚠ Invalid API key. Click the key icon to enter your own Groq API key.");reply="⚠ **API Key Error**: Your Groq API key is invalid or expired. Please click the 🔑 icon in the chat header to enter your own free API key from [console.groq.com](https://console.groq.com)."}
+        else if(res.status===429){setApiError("⚠ Rate limited. Wait a moment or use your own API key.");reply="⚠ **Rate Limited**: Too many requests. Please wait 30 seconds and try again, or click the 🔑 icon to use your own API key."}
+        else{reply=`⚠ API error ${res.status}: ${errMsg}`}
+      }else{
+        reply=data.choices?.[0]?.message?.content||"(Empty response.)";
+      }
     }catch(e){
       if(e.name==="AbortError"){setIsLoading(false);return}
       reply="⚠ Network error. Check your connection.";
     }
-    let fmt=reply
-      .replace(/\*\*(.*?)\*\*/g,'<strong class="t-white text-white">$1</strong>')
-      .replace(/\*(.*?)\*/g,'<em class="t-gray-300 text-gray-300">$1</em>')
-      .replace(/\n\n/g,'</p><p class="mt-2">')
-      .replace(/\n/g,"<br>");
+    let fmt=reply.replace(/\*\*(.*?)\*\*/g,'<strong class="t-white text-white">$1</strong>').replace(/\*(.*?)\*/g,'<em class="t-gray-300 text-gray-300">$1</em>').replace(/\n\n/g,'</p><p class="mt-2">').replace(/\n/g,"<br>");
     fmt=linkifyChatRefs(fmt);
     const th=nh.length>18?nh.slice(-18):nh;
     setHistory([...th,{role:"assistant",content:reply}]);
     setMessages(p=>[...p,{role:"bot",html:`<p>${fmt}</p>`}]);setIsLoading(false);
-  },[history,isLoading]);
+  },[history,isLoading,activeKey]);
 
   return(
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {isOpen&&(
-        <div className="chat-window flex flex-col w-80 sm:w-96 rounded-2xl overflow-hidden" style={{maxHeight:"540px",boxShadow:"0 20px 60px rgba(0,0,0,0.65),0 0 0 1px rgba(0,196,122,0.12)",background:"#08101e"}}>
+        <div className="chat-window flex flex-col w-80 sm:w-96 rounded-2xl overflow-hidden" style={{maxHeight:"560px",boxShadow:"0 20px 60px rgba(0,0,0,0.65),0 0 0 1px rgba(0,196,122,0.12)",background:"#08101e"}}>
           <div className="chat-header flex items-center justify-between px-4 py-3 border-b shrink-0" style={{background:"#0d1826",borderColor:"rgba(255,255,255,0.07)"}}>
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0"><i className="fas fa-balance-scale t-emerald-400 text-emerald-400 text-xs"></i></div>
-              <div>
-                <div className="text-sm font-semibold t-white text-white leading-tight">FairLens AI Coach</div>
-                <div className="text-[10px] t-emerald-500 text-emerald-500 leading-tight">Multilingual · EN · FIL · CEB</div>
-              </div>
+              <div><div className="text-sm font-semibold t-white text-white leading-tight">FairLens AI Coach</div><div className="text-[10px] t-emerald-500 text-emerald-500 leading-tight">Multilingual · EN · FIL · CEB</div></div>
             </div>
-            <button onClick={()=>setIsOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-lg t-gray-500 text-gray-500 hover:t-white hover:text-white hover:bg-white/10 transition"><i className="fas fa-times text-xs"></i></button>
+            <div className="flex items-center gap-1">
+              <button onClick={()=>setShowKeyConfig(v=>!v)} className="w-7 h-7 flex items-center justify-center rounded-lg t-gray-500 text-gray-500 hover:t-yellow-400 hover:text-yellow-400 hover:bg-white/10 transition" title="Configure API Key"><i className="fas fa-key text-xs"></i></button>
+              <button onClick={()=>setIsOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-lg t-gray-500 text-gray-500 hover:t-white hover:text-white hover:bg-white/10 transition"><i className="fas fa-times text-xs"></i></button>
+            </div>
           </div>
+
+          {showKeyConfig&&(
+            <div className="px-4 py-3 border-b border-ds border-white/[0.05]" style={{background:"#0a1220"}}>
+              <p className="text-[10px] t-gray-400 text-gray-400 mb-2"><i className="fas fa-info-circle t-yellow-400 text-yellow-400 mr-1"></i>If the chatbot shows errors, enter your own free Groq API key from <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" className="ref-link">console.groq.com</a></p>
+              <div className="flex gap-2">
+                <input value={apiKey} onChange={e=>saveKey(e.target.value)} placeholder="gsk_..." className="chat-input flex-1 bg-gray-900 border border-gray-700 focus:border-emerald-500/50 rounded-lg px-3 py-1.5 t-white text-white text-xs focus:outline-none transition placeholder-gray-600"/>
+                <button onClick={()=>saveKey("")} className="text-[10px] t-gray-500 text-gray-500 hover:t-red-400 hover:text-red-400 transition px-2">Clear</button>
+              </div>
+              {apiError&&<p className="text-red-400 text-[10px] mt-1.5">{apiError}</p>}
+            </div>
+          )}
+
           <div className="chat-msgs flex-1 overflow-y-auto p-4 space-y-3 text-sm" id="chat-messages" style={{background:"rgba(4,8,18,0.95)"}}>
             {messages.map((m,i)=>m.role==="bot"?(
               <div key={i} className="flex items-start gap-2"><div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5"><i className="fas fa-balance-scale t-emerald-400 text-emerald-400 text-[10px]"></i></div><div className="chat-bot px-3 py-2.5 rounded-xl rounded-tl-none t-gray-200 text-gray-200 text-sm leading-relaxed max-w-[88%]" style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)"}}dangerouslySetInnerHTML={{__html:m.html}}/></div>
@@ -505,7 +722,6 @@ function App(){
           </div>
         </section>
       </main>
-
       <Chatbot/>
     </>
   );
