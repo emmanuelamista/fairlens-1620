@@ -1,10 +1,14 @@
 """
 FairLens – FastAPI Backend (Pure Python - No Pandas/Numpy CPU crashes)
++ Chatbot proxy using Groq API (environment variable)
 """
 
 import os
+from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import httpx
 
 app = FastAPI()
 
@@ -15,6 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ========== DATA ==========
 RAW_DATA = [
     {"Income": 85, "Term": 36, "Gender": "M", "True Label": 1},
     {"Income": 90, "Term": 24, "Gender": "M", "True Label": 1},
@@ -57,6 +62,7 @@ def _build_dataset() -> List[dict]:
 class DatasetPayload(BaseModel):
     dataset: List[dict]
 
+# ========== API ENDPOINTS ==========
 @app.get("/api/dataset")
 def get_dataset():
     return {"dataset": _build_dataset()}
@@ -64,7 +70,6 @@ def get_dataset():
 @app.post("/api/detect-bias")
 def detect_bias(payload: DatasetPayload):
     dataset = payload.dataset
-    
     if not dataset:
         raise HTTPException(status_code=422, detail="Dataset is empty")
         
@@ -156,6 +161,53 @@ def mitigate(payload: DatasetPayload):
             f"Mitigation applied (DI = {fair_di:.3f}), but still below the 0.9 threshold."
         ),
     }
+
+# ========== CHATBOT PROXY ENDPOINT ==========
+class ChatRequest(BaseModel):
+    messages: List[dict]
+
+@app.post("/api/chat")
+async def chat_proxy(req: ChatRequest):
+    groq_key = os.environ.get("GROQ_KEY")
+    if not groq_key:
+        raise HTTPException(status_code=500, detail="GROQ_KEY environment variable not set")
+    
+    # System prompt to keep the assistant grounded
+    system_prompt = {
+        "role": "system",
+        "content": (
+            "You are the FairLens AI Coach. Answer questions about algorithmic bias, "
+            "Disparate Impact (DI), counterfactual fairness, IEEE 7003-2024, and related case studies (COMPAS, Amazon, Gender Shades). "
+            "Use the references: Mehrabi et al. (2021), Barocas et al. (2023), Ferrara (2024), Buolamwini & Gebru (2018). "
+            "Keep answers concise (3‑6 sentences). Do NOT invent statistics or authors. "
+            "If unsure, say: 'I am not certain about that detail.'"
+        )
+    }
+    # Prepend system message if not already present
+    messages = req.messages
+    if not messages or messages[0].get("role") != "system":
+        messages = [system_prompt] + messages
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {groq_key}"},
+                json={
+                    "model": "llama-3.1-8b-instant",
+                    "messages": messages,
+                    "temperature": 0.2,
+                    "max_tokens": 500,
+                    "top_p": 0.9,
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
