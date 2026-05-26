@@ -10,8 +10,8 @@
       "dest": "api/main.py"
     },
     {
-      "src": "/(.*)\\.(pdf|png|jpg|jpeg|gif|svg|ico|css|js|woff2|woff|ttf|eot)",
-      "dest": "/public/$1.$2"
+      "src": "/FairLens_CaseStudy.pdf",
+      "dest": "/frontend/FairLens_CaseStudy.pdf"
     },
     {
       "src": "/(.*)",
