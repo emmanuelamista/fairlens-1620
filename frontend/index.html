@@ -71,6 +71,8 @@
     [data-theme="light"] .s-fair{background:rgba(5,150,105,0.05)!important;border-color:rgba(5,150,105,0.15)!important}
     [data-theme="light"] .sc-ok{background:rgba(5,150,105,0.06)!important;border-color:rgba(5,150,105,0.15)!important}
     [data-theme="light"] .sc-bad{background:rgba(220,38,38,0.06)!important;border-color:rgba(220,38,38,0.15)!important}
+    [data-theme="light"] .csv-dropzone{background:#f8fafc!important;border-color:rgba(0,0,0,0.12)!important}[data-theme="light"] .csv-dropzone.drag-active{border-color:#059669!important;background:rgba(5,150,105,0.04)!important}
+    [data-theme="light"] .csv-info{background:rgba(0,0,0,0.02)!important;border-color:rgba(0,0,0,0.06)!important}
   </style>
 </head>
 <body class="text-gray-200 font-sans antialiased">
@@ -97,12 +99,7 @@ function R({href,children}){
   return <a href={href} target="_blank" rel="noopener noreferrer" className="ref-link">{children}</a>;
 }
 
-/* ── FLEXIBLE CHAT REFERENCE PATTERNS ──
-   Catches citations regardless of formatting variations:
-   "Mehrabi et al. (2021)" / "Mehrabi et al., 2021" / "Mehrabi et al. 2021" etc.
-   "Pessach & Shmueli (2022)" / "Pessach and Shmueli, 2022" / "Pessach & Shmueli 2022" etc.
-   "Barocas, Hardt & Narayanan (2023)" / "Barocas et al. (2023)" / "Barocas et al., 2023" etc.
-   Uses .*? (non-greedy) to bridge author name to the year. */
+/* ── FLEXIBLE CHAT REFERENCE PATTERNS ── */
 const CHAT_REF_PATTERNS = [
   { re: /Mehrabi\s+et\s+al\.?\s*\(?\s*2021\s*\)?/gi,   url: REF_URLS.mehrabi },
   { re: /Barocas[\s,]*(?:Hardt[\s&]*Narayanan)?\s*(?:et\s+al\.?)?\s*\(?\s*2023\s*\)?/gi, url: REF_URLS.barocas },
@@ -119,7 +116,6 @@ function linkifyChatRefs(html){
   let r = html;
   for(const{re,url}of CHAT_REF_PATTERNS){
     r = r.replace(re, match => {
-      /* Don't double-wrap if already inside an <a> tag */
       const before = r.substring(Math.max(0, r.lastIndexOf('<a', r.indexOf(match)) - 1), r.indexOf(match) + match.length);
       if (before.includes('href=')) return match;
       return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-ref-link">${match}</a>`;
@@ -144,6 +140,75 @@ function GaugeSVG({value,color}){
   return(<svg className="g-svg mx-auto" width="72" height="72" viewBox="0 0 72 72"><circle className="g-bg" cx="36" cy="36" r="28"/><circle className="g-arc" cx="36" cy="36" r="28" stroke={color} strokeDasharray={`${arc} ${CIRC}`}/></svg>);
 }
 
+/* ── CSV PARSER ── */
+function parseCSV(text){
+  const lines = text.trim().split(/\r?\n/);
+  if(lines.length < 2) return {error:"CSV must have a header row and at least one data row."};
+
+  /* Parse header */
+  const header = lines[0].split(",").map(h=>h.trim().replace(/^["']|["']$/g,""));
+
+  /* Case-insensitive column matching for required fields */
+  const REQUIRED = ["Income","Term","Gender","true_label"];
+  const ALIASES = {
+    Income: ["income","annual_income","salary","earnings"],
+    Term: ["term","loan_term","term_months","months","duration"],
+    Gender: ["gender","sex"],
+    true_label: ["true_label","label","approved","decision","outcome","target","class"]
+  };
+
+  const colMap = {};
+  for(const req of REQUIRED){
+    const aliases = ALIASES[req] || [req.toLowerCase()];
+    const idx = header.findIndex(h => {
+      const lh = h.toLowerCase().replace(/[\s_-]/g,"");
+      return lh === req.toLowerCase() || aliases.some(a => a.replace(/[\s_-]/g,"") === lh);
+    });
+    if(idx === -1){
+      return {error:`Missing required column: "${req}". Your CSV headers: ${header.join(", ")}. Expected columns: Income, Term, Gender, true_label`};
+    }
+    colMap[req] = idx;
+  }
+
+  /* Parse data rows */
+  const dataset = [];
+  const errors = [];
+  for(let i=1; i<lines.length; i++){
+    if(!lines[i].trim()) continue;
+    const cells = lines[i].split(",").map(c=>c.trim().replace(/^["']|["']$/g,""));
+    if(cells.length < header.length) { errors.push(`Row ${i+1}: has fewer columns than header.`); continue; }
+
+    const income = parseFloat(cells[colMap.Income]);
+    const term = parseInt(cells[colMap.Term],10);
+    const gender = cells[colMap.Gender]?.toUpperCase();
+    const label = parseInt(cells[colMap.true_label],10);
+
+    if(isNaN(income)){ errors.push(`Row ${i+1}: Invalid Income value "${cells[colMap.Income]}"`); continue; }
+    if(isNaN(term)){ errors.push(`Row ${i+1}: Invalid Term value "${cells[colMap.Term]}"`); continue; }
+    if(gender!=="M"&&gender!=="F"&&gender!=="MALE"&&gender!=="FEMALE"){ errors.push(`Row ${i+1}: Gender must be M/F/Male/Female, got "${cells[colMap.Gender]}"`); continue; }
+    if(isNaN(label)||(label!==0&&label!==1)){ errors.push(`Row ${i+1}: true_label must be 0 or 1, got "${cells[colMap.true_label]}"`); continue; }
+
+    dataset.push({
+      Income: income,
+      Term: term,
+      Gender: gender==="MALE"?"M":gender==="FEMALE"?"F":gender,
+      true_label: label
+    });
+  }
+
+  if(dataset.length === 0){
+    return {error: errors.length ? errors.join(" ") : "No valid data rows found in CSV."};
+  }
+
+  /* Check that both genders are present */
+  const genders = new Set(dataset.map(r=>r.Gender));
+  if(genders.size < 2){
+    return {error:`Dataset must contain both M and F gender values. Found only: ${[...genders].join(", ")}`};
+  }
+
+  return {dataset, warnings: errors, rowCount: dataset.length};
+}
+
 /* ── PROTOTYPE ── */
 function PrototypeSection(){
   const[dataset,setDataset]=useState([]);
@@ -153,7 +218,78 @@ function PrototypeSection(){
   const[mitigResult,setMitigResult]=useState(null);
   const[step,setStep]=useState("idle");
 
+  /* CSV upload states */
+  const[csvMode,setCsvMode]=useState(false);
+  const[csvFileName,setCsvFileName]=useState("");
+  const[csvError,setCsvError]=useState(null);
+  const[csvWarnings,setCsvWarnings]=useState([]);
+  const[csvRowCount,setCsvRowCount]=useState(null);
+  const[isDragOver,setIsDragOver]=useState(false);
+  const fileInputRef=useRef(null);
+
   useEffect(()=>{(async()=>{try{const r=await fetch(`${API_BASE}/api/dataset`);if(!r.ok)throw new Error(`${r.status}`);const j=await r.json();setDataset(j.dataset)}catch(e){setError("⚠ Could not reach FastAPI backend. Make sure main.py is running on port 8000.")}})()},[]);
+
+  /* ── CSV FILE HANDLER ── */
+  const handleCSVFile=useCallback((file)=>{
+    if(!file) return;
+    if(!file.name.toLowerCase().endsWith(".csv")){
+      setCsvError("Only .csv files are accepted.");
+      return;
+    }
+    if(file.size > 5*1024*1024){
+      setCsvError("File too large. Maximum size is 5 MB.");
+      return;
+    }
+    setCsvError(null);setCsvWarnings([]);
+
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const result = parseCSV(e.target.result);
+      if(result.error){
+        setCsvError(result.error);
+        return;
+      }
+      /* Reset pipeline state when uploading new data */
+      setBiasResult(null);setMitigResult(null);setStep("idle");setError(null);
+      setDataset(result.dataset);
+      setCsvFileName(file.name);
+      setCsvRowCount(result.rowCount);
+      setCsvWarnings(result.warnings||[]);
+      setCsvMode(true);
+    };
+    reader.onerror = ()=>{ setCsvError("Failed to read file."); };
+    reader.readAsText(file);
+  },[]);
+
+  const handleDrop=useCallback((e)=>{
+    e.preventDefault();e.stopPropagation();
+    setIsDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if(file) handleCSVFile(file);
+  },[handleCSVFile]);
+
+  const handleDragOver=useCallback((e)=>{
+    e.preventDefault();e.stopPropagation();
+    setIsDragOver(true);
+  },[]);
+
+  const handleDragLeave=useCallback((e)=>{
+    e.preventDefault();e.stopPropagation();
+    setIsDragOver(false);
+  },[]);
+
+  const handleFileInput=useCallback((e)=>{
+    const file = e.target.files?.[0];
+    if(file) handleCSVFile(file);
+    e.target.value="";
+  },[handleCSVFile]);
+
+  const clearCSV=useCallback(()=>{
+    setCsvMode(false);setCsvFileName("");setCsvError(null);setCsvWarnings([]);setCsvRowCount(null);
+    setBiasResult(null);setMitigResult(null);setStep("idle");setError(null);
+    /* Reload default dataset */
+    (async()=>{try{const r=await fetch(`${API_BASE}/api/dataset`);if(!r.ok)throw new Error(`${r.status}`);const j=await r.json();setDataset(j.dataset)}catch(e){}})();
+  },[]);
 
   const handleDetect=async()=>{
     if(!dataset.length)return;
@@ -211,18 +347,99 @@ function PrototypeSection(){
   return(
     <section id="prototype" className="mt-14">
       <div className="flex items-center gap-3 mb-1"><div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div><h2 className="text-xl font-bold t-white text-white">Prototype — FairLens Bias Detection Pipeline</h2></div>
-      <p className="text-xs t-gray-500 text-gray-500 ml-5 mb-5">Live interactive demo · Synthetic loan dataset (10 applicants) · FastAPI backend · IEEE 7003-2024</p>
+      <p className="text-xs t-gray-500 text-gray-500 ml-5 mb-5">Live interactive demo · Upload your own CSV or use the built-in synthetic dataset · FastAPI backend · IEEE 7003-2024</p>
       {error&&<div className="mb-4 bg-red-950/40 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm">{error}</div>}
       <div className="card-prototype bg-gray-950/80 border border-emerald-500/10 rounded-2xl p-5 md:p-7">
         <div className="flex flex-wrap gap-2 mb-6 text-[11px] t-gray-500 text-gray-500">
           <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-shield-alt mr-1 t-emerald-500 text-emerald-500"></i>Protected attribute: Gender (M / F)</span>
-          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-users mr-1 t-purple-400 text-purple-400"></i>10 synthetic loan applicants</span>
+          <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-users mr-1 t-purple-400 text-purple-400"></i>{csvMode?`${csvRowCount} uploaded applicants`:"10 synthetic loan applicants"}</span>
           <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-exclamation-circle mr-1 t-red-400 text-red-400"></i>Biased model: −12 pt hidden gender penalty</span>
           <span className="tag-pill bg-white/5 border border-white/[0.07] px-3 py-1 rounded-full"><i className="fas fa-server mr-1 t-blue-300 text-blue-300"></i>Powered by FastAPI + Pandas</span>
         </div>
+
+        {/* ── CSV UPLOAD ZONE ── */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-sm font-semibold t-white text-white flex items-center gap-2"><i className="fas fa-file-csv t-emerald-400 text-emerald-400 text-xs"></i>Dataset Source</h3>
+            {csvMode&&(
+              <button onClick={clearCSV} className="text-[10px] t-red-400 text-red-400 hover:t-red-300 hover:text-red-300 transition flex items-center gap-1 ml-auto"><i className="fas fa-times-circle"></i>Clear uploaded CSV &amp; use default</button>
+            )}
+          </div>
+
+          {!csvMode ? (
+            <div
+              className={`csv-dropzone border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${isDragOver?"border-emerald-500 bg-emerald-500/5":"border-white/10 hover:border-emerald-500/40 hover:bg-white/[0.01]"}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={()=>fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileInput}
+              />
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <i className="fas fa-cloud-upload-alt t-emerald-400 text-emerald-400"></i>
+                </div>
+                <p className="text-sm t-gray-300 text-gray-300 font-medium">
+                  Drag &amp; drop a CSV file here, or <span className="t-emerald-400 text-emerald-400 underline">click to browse</span>
+                </p>
+                <p className="text-[10px] t-gray-600 text-gray-600 leading-relaxed max-w-md">
+                  Required columns: <strong className="t-gray-400 text-gray-400">Income</strong> (number), <strong className="t-gray-400 text-gray-400">Term</strong> (months), <strong className="t-gray-400 text-gray-400">Gender</strong> (M/F), <strong className="t-gray-400 text-gray-400">true_label</strong> (0 or 1).&nbsp;
+                  Also accepts aliases like <em>salary, loan_term, sex, approved, label, target</em>.
+                </p>
+                <p className="text-[10px] t-gray-600 text-gray-600">Max 5 MB · Must contain both M and F rows</p>
+              </div>
+            </div>
+          ) : (
+            <div className="csv-info bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                <i className="fas fa-file-csv t-emerald-400 text-emerald-400 text-sm"></i>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm t-white text-white font-medium truncate"><i className="fas fa-check-circle t-emerald-400 text-emerald-400 mr-1 text-xs"></i>{csvFileName}</p>
+                <p className="text-[10px] t-gray-500 text-gray-500">{csvRowCount} rows loaded · Ready for bias analysis</p>
+                {csvWarnings.length>0&&<p className="text-[10px] t-yellow-400 text-yellow-400 mt-0.5"><i className="fas fa-exclamation-triangle mr-0.5"></i>{csvWarnings.length} row(s) skipped due to invalid data</p>}
+              </div>
+              <button onClick={()=>fileInputRef.current?.click()} className="text-[10px] t-emerald-400 text-emerald-400 hover:t-emerald-300 hover:text-emerald-300 transition flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/5"><i className="fas fa-sync-alt"></i>Replace</button>
+              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileInput}/>
+            </div>
+          )}
+
+          {csvError&&(
+            <div className="mt-2 bg-red-950/40 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-xs flex items-start gap-2">
+              <i className="fas fa-exclamation-circle mt-0.5 shrink-0"></i>
+              <div>
+                <p className="font-semibold mb-0.5">CSV Import Error</p>
+                <p>{csvError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Sample CSV format hint */}
+          {!csvMode && !csvError && (
+            <details className="mt-2">
+              <summary className="text-[10px] t-gray-600 text-gray-600 cursor-pointer hover:t-gray-400 hover:text-gray-400 transition select-none"><i className="fas fa-info-circle mr-1"></i>View expected CSV format</summary>
+              <div className="mt-2 bg-black/30 border border-white/[0.05] rounded-lg p-3 text-[10px] font-mono t-gray-500 text-gray-500 overflow-x-auto">
+                <p className="t-gray-400 text-gray-400 mb-1"># Example CSV:</p>
+                <p>Income,Term,Gender,true_label</p>
+                <p>45,36,M,1</p>
+                <p>32,24,F,0</p>
+                <p>58,48,M,1</p>
+                <p>29,12,F,1</p>
+                <p className="t-gray-600 text-gray-600 mt-1"># Also works with aliases: salary, loan_term, sex, approved, label, target</p>
+              </div>
+            </details>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           <div className="lg:col-span-3 card-inset bg-black/20 border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold t-white text-white mb-3 flex items-center gap-2"><i className="fas fa-table t-emerald-400 text-emerald-400 text-xs"></i>Loan Applicant Dataset{loading&&<span className="spin t-emerald-400 text-emerald-400 text-xs ml-1"><i className="fas fa-circle-notch"></i></span>}</h3>
+            <h3 className="text-sm font-semibold t-white text-white mb-3 flex items-center gap-2"><i className="fas fa-table t-emerald-400 text-emerald-400 text-xs"></i>{csvMode?"Uploaded":"Loan Applicant"} Dataset{loading&&<span className="spin t-emerald-400 text-emerald-400 text-xs ml-1"><i className="fas fa-circle-notch"></i></span>}{csvMode&&<span className="text-[10px] t-emerald-500 text-emerald-500 font-normal ml-1">({csvFileName})</span>}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left t-gray-400 text-gray-400">
                 <thead><tr className="table-header bg-gray-800/50 t-gray-500 text-gray-500 text-[10px] uppercase tracking-wider"><th className="px-2 py-2">#</th><th className="px-2 py-2">Income</th><th className="px-2 py-2">Term</th><th className="px-2 py-2">Gender</th><th className="px-2 py-2">True Label</th><th className="px-2 py-2">Biased Pred</th><th className="px-2 py-2">Fair Pred</th></tr></thead>
@@ -267,7 +484,7 @@ function PrototypeSection(){
   );
 }
 
-/* ── CHATBOT SYSTEM PROMPT (upgraded for deeper analysis) ── */
+/* ── CHATBOT SYSTEM PROMPT ── */
 const SYSTEM_PROMPT = `You are the FairLens AI Coach — a precise, analytically rigorous assistant for CS 323 at North Eastern Mindanao State University (NEMSU). Built by Emmanuel Amista under Dr. Catherine R. Alimboyong.
 
 LANGUAGE AUTO-DETECTION (MANDATORY):
@@ -302,7 +519,7 @@ VERIFIED STATISTICS (do NOT add numbers beyond these):
 - Amazon AI: trained on 10 years of résumés (mostly from men), penalized "women's," scrapped in 2018 (Reuters, 2018)
 - DI formula: approval rate (protected group) ÷ approval rate (majority group)
 - DI ≥ 0.9 = fair; DI between 0.8–0.9 = marginal; DI ≤ 0.8 = discriminatory (IEEE 7003-2024)
-- FairLens prototype: 10 synthetic applicants, biased model applies −12 pt penalty for female gender, fair model removes it
+- FairLens prototype: supports CSV upload with columns Income, Term, Gender, true_label; biased model applies −12 pt penalty for female gender, fair model removes it
 - Counterfactual fairness: a decision is fair if it would be identical had the protected attribute been different (Barocas et al., 2023)
 - AIF360: IBM open-source toolkit for bias detection and mitigation
 - ACM Code of Ethics: Principles 1.2 (Avoid Harm), 1.4 (Be Fair), 2.5 (Comprehensive Evaluations)
@@ -443,6 +660,7 @@ function App(){
           <div className="flex flex-wrap gap-3 mt-6">
             <a href="#prototype" className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 t-white text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all"><i className="fas fa-flask text-xs"></i>Run the Prototype</a>
             <a href="#solutions" className="btn-sec inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 t-gray-300 text-gray-300 text-sm font-medium px-5 py-2.5 rounded-xl transition-all"><i className="fas fa-file-alt text-xs"></i>View Recommendations</a>
+            <a href="FairLens_CaseStudy.pdf" target="_blank" rel="noopener noreferrer" className="btn-sec inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 t-gray-300 text-gray-300 text-sm font-medium px-5 py-2.5 rounded-xl transition-all"><i className="fas fa-file-pdf text-xs"></i>View the PDF Case Study of FairLens</a>
           </div>
         </div>
 
