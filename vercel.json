@@ -10,6 +10,10 @@
       "dest": "api/main.py"
     },
     {
+      "src": "/(.*)\\.(pdf|png|jpg|jpeg|gif|svg|ico|css|js|woff2|woff|ttf|eot)",
+      "dest": "/frontend/$1.$2"
+    },
+    {
       "src": "/(.*)",
       "dest": "/frontend/index.html"
     }
