@@ -11,7 +11,7 @@
     },
     {
       "src": "/(.*)\\.(pdf|png|jpg|jpeg|gif|svg|ico|css|js|woff2|woff|ttf|eot)",
-      "dest": "/frontend/$1.$2"
+      "dest": "/public/$1.$2"
     },
     {
       "src": "/(.*)",
